@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADB SQLite Query Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f6f7;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: #2c3e50;
+            color: #ecf0f1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #34495e;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            background: #34495e;
+            border-bottom: 1px solid #2c3e50;
+        }
+
+        .sidebar-header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .connection-status {
+            font-size: 12px;
+            padding: 5px 10px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 10px;
+        }
+
+        .connection-status.connected {
+            background: #27ae60;
+            color: white;
+        }
+
+        .connection-status.disconnected {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .sidebar-search {
+            padding: 15px;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .sidebar-search input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #34495e;
+            border-radius: 4px;
+            background: #34495e;
+            color: #ecf0f1;
+            font-size: 13px;
+        }
+
+        .sidebar-search input::placeholder {
+            color: #95a5a6;
+        }
+
+        .tables-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 0;
+        }
+
+        .table-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .table-item:hover {
+            background: #34495e;
+            border-left-color: #3498db;
+        }
+
+        .table-item.active {
+            background: #34495e;
+            border-left-color: #3498db;
+        }
+
+        .table-item-name {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 3px;
+        }
+
+        .table-item-count {
+            font-size: 11px;
+            color: #95a5a6;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .toolbar {
+            background: white;
+            border-bottom: 1px solid #ddd;
+            padding: 15px 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .toolbar button {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .toolbar button:hover {
+            background: #f8f9fa;
+        }
+
+        .toolbar button.primary {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+
+        .toolbar button.primary:hover {
+            background: #2980b9;
+        }
+
+        .query-editor {
+            background: white;
+            border-bottom: 1px solid #ddd;
+            padding: 15px 20px;
+        }
+
+        .query-editor textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .content-area {
+            flex: 1;
+            overflow: auto;
+            background: white;
+            position: relative;
+        }
+
+        .table-wrapper {
+            overflow: auto;
+            max-height: 100%;
+            max-width: 100%;
+            position: relative;
+        }
+
+        table {
+            width: max-content;
+            min-width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            background: #f8f9fa;
+            z-index: 10;
+        }
+
+        th {
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #dee2e6;
+            border-right: 1px solid #dee2e6;
+            background: #f8f9fa;
+            color: #495057;
+        }
+
+        td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #dee2e6;
+            border-right: 1px solid #dee2e6;
+            white-space: nowrap;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-bar {
+            background: #f8f9fa;
+            border-top: 1px solid #ddd;
+            padding: 8px 20px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .loading {
+            padding: 40px;
+            text-align: center;
+            color: #666;
+        }
+
+        .error {
+            padding: 20px;
+            background: #fee;
+            color: #c33;
+            border: 1px solid #fcc;
+            border-radius: 4px;
+            margin: 20px;
+        }
+
+        .info {
+            padding: 20px;
+            background: #e3f2fd;
+            color: #1976d2;
+            border: 1px solid #90caf9;
+            border-radius: 4px;
+            margin: 20px;
+        }
+
+        .pagination {
+            padding: 15px 20px;
+            background: white;
+            border-top: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pagination button {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination button:not(:disabled):hover {
+            background: #f8f9fa;
+        }
+
+        .pagination input[type="number"] {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .pagination select {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+        }
+
+        .pagination label {
+            font-size: 12px;
+            color: #666;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 5px;
+            padding: 0 20px;
+            background: white;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .tab:hover {
+            background: #f8f9fa;
+        }
+
+        .tab.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Refresh button animation */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .spinning {
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h1>ADB SQLite Viewer</h1>
+            <div class="connection-status disconnected" id="connectionStatus">
+                Checking connection...
+            </div>
+        </div>
+        <div class="sidebar-search">
+            <input type="text" id="tableSearch" placeholder="Search tables...">
+        </div>
+        <div class="tables-list" id="tablesList">
+            <div class="loading">Loading tables...</div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="toolbar">
+            <button class="primary" onclick="executeQuery()">Execute (F5)</button>
+            <button onclick="refreshTables()">Refresh Tables</button>
+            <button onclick="forcePullDatabase()" style="background: #e67e22; color: white; border-color: #e67e22;">Force Pull from Device</button>
+            <button onclick="clearCacheOnly()">Clear Cache</button>
+            <button onclick="clearQuery()">Clear Query</button>
+            <button onclick="formatQuery()">Format</button>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('query')">Query</div>
+            <div class="tab" onclick="switchTab('structure')">Structure</div>
+        </div>
+
+        <div class="query-editor">
+            <textarea id="queryInput" placeholder="Enter your SQL query here..."></textarea>
+        </div>
+
+        <div class="tab-content active" id="queryTab">
+            <div class="content-area">
+                <div class="info" id="welcomeMessage">
+                    <strong>Welcome to ADB SQLite Query Viewer!</strong><br>
+                    Select a table from the sidebar or write a custom SQL query above.
+                </div>
+                <div class="table-wrapper" id="resultsContainer"></div>
+            </div>
+            <div class="pagination" id="pagination" style="display: none;">
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button onclick="firstPage()" id="firstBtn">First</button>
+                    <button onclick="previousPage()" id="prevBtn">Previous</button>
+                    <span id="pageInfo"></span>
+                    <button onclick="nextPage()" id="nextBtn">Next</button>
+                    <button onclick="lastPage()" id="lastBtn">Last</button>
+                    <span style="margin-left: 20px;">|</span>
+                    <label style="margin-left: 10px;">Go to page:</label>
+                    <input type="number" id="gotoPageInput" min="1" style="width: 80px; padding: 4px;" onkeypress="if(event.key === 'Enter') gotoPage()">
+                    <button onclick="gotoPage()">Go</button>
+                    <span style="margin-left: 20px;">|</span>
+                    <label style="margin-left: 10px;">Rows per page:</label>
+                    <select id="limitSelect" onchange="changeLimit()" style="padding: 4px;">
+                        <option value="50">50</option>
+                        <option value="100" selected>100</option>
+                        <option value="200">200</option>
+                        <option value="500">500</option>
+                        <option value="1000">1000</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+            </div>
+            <div class="status-bar" id="statusBar">Ready</div>
+        </div>
+
+        <div class="tab-content" id="structureTab">
+            <div class="content-area">
+                <div class="info">Select a table to view its structure</div>
+                <div class="table-wrapper" id="structureContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTable = null;
+        let currentOffset = 0;
+        let currentLimit = 100;
+        let totalCount = 0;
+        let activeTab = 'query';
+
+        // Check connection on load
+        window.addEventListener('DOMContentLoaded', () => {
+            checkConnection();
+            loadTables();
+
+            // Add keyboard shortcut for F5
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'F5') {
+                    e.preventDefault();
+                    executeQuery();
+                }
+            });
+
+            // Table search functionality
+            document.getElementById('tableSearch').addEventListener('input', (e) => {
+                filterTables(e.target.value);
+            });
+        });
+
+        async function checkConnection() {
+            try {
+                const response = await fetch('/api/check-connection');
+                const data = await response.json();
+
+                const statusEl = document.getElementById('connectionStatus');
+                if (data.success) {
+                    statusEl.textContent = 'Connected';
+                    statusEl.className = 'connection-status connected';
+                } else {
+                    statusEl.textContent = 'Disconnected';
+                    statusEl.className = 'connection-status disconnected';
+                    showError('Connection Error: ' + data.error);
+                }
+            } catch (error) {
+                document.getElementById('connectionStatus').textContent = 'Error';
+                document.getElementById('connectionStatus').className = 'connection-status disconnected';
+            }
+        }
+
+        async function loadTables() {
+            try {
+                const response = await fetch('/api/tables');
+                const data = await response.json();
+
+                const tablesList = document.getElementById('tablesList');
+
+                if (!data.success) {
+                    tablesList.innerHTML = `<div class="error">${data.error}</div>`;
+                    return;
+                }
+
+                if (data.tables.length === 0) {
+                    tablesList.innerHTML = '<div class="info">No tables found</div>';
+                    return;
+                }
+
+                tablesList.innerHTML = data.tables.map(table => `
+                    <div class="table-item" data-table="${table.name}" onclick="selectTable('${table.name}')">
+                        <div class="table-item-name">${table.name}</div>
+                        <div class="table-item-count">${table.row_count.toLocaleString()} rows</div>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                document.getElementById('tablesList').innerHTML =
+                    `<div class="error">Failed to load tables: ${error.message}</div>`;
+            }
+        }
+
+        function filterTables(searchText) {
+            const items = document.querySelectorAll('.table-item');
+            const search = searchText.toLowerCase();
+
+            items.forEach(item => {
+                const tableName = item.dataset.table.toLowerCase();
+                item.style.display = tableName.includes(search) ? 'block' : 'none';
+            });
+        }
+
+        async function selectTable(tableName) {
+            currentTable = tableName;
+            currentOffset = 0;
+
+            // Update active state
+            document.querySelectorAll('.table-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.table === tableName);
+            });
+
+            // Set query
+            document.getElementById('queryInput').value = `SELECT * FROM ${tableName}`;
+
+            // Load table data
+            if (activeTab === 'query') {
+                await loadTableData(tableName);
+            } else {
+                await loadTableStructure(tableName);
+            }
+        }
+
+        async function loadTableData(tableName, offset = 0) {
+            const resultsContainer = document.getElementById('resultsContainer');
+            const statusBar = document.getElementById('statusBar');
+            const welcomeMessage = document.getElementById('welcomeMessage');
+
+            resultsContainer.innerHTML = '<div class="loading">Loading data...</div>';
+            welcomeMessage.style.display = 'none';
+
+            try {
+                const response = await fetch(`/api/table-data/${tableName}?limit=${currentLimit}&offset=${offset}`);
+                const data = await response.json();
+
+                if (!data.success) {
+                    resultsContainer.innerHTML = `<div class="error">${data.error}</div>`;
+                    return;
+                }
+
+                currentOffset = offset;
+                totalCount = data.total_count;
+
+                displayResults(data.columns, data.rows);
+                updatePagination();
+                statusBar.textContent = `${data.row_count} rows retrieved (${totalCount.toLocaleString()} total)`;
+
+            } catch (error) {
+                resultsContainer.innerHTML = `<div class="error">Failed to load data: ${error.message}</div>`;
+            }
+        }
+
+        async function loadTableStructure(tableName) {
+            const structureContainer = document.getElementById('structureContainer');
+
+            structureContainer.innerHTML = '<div class="loading">Loading structure...</div>';
+
+            try {
+                const response = await fetch(`/api/table-structure/${tableName}`);
+                const data = await response.json();
+
+                if (!data.success) {
+                    structureContainer.innerHTML = `<div class="error">${data.error}</div>`;
+                    return;
+                }
+
+                const columns = ['cid', 'name', 'type', 'notnull', 'dflt_value', 'pk'];
+                const rows = data.columns;
+
+                structureContainer.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                ${columns.map(col => `<th>${col}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows.map(row => `
+                                <tr>
+                                    ${columns.map(col => `<td>${row[col] ?? ''}</td>`).join('')}
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+
+            } catch (error) {
+                structureContainer.innerHTML = `<div class="error">Failed to load structure: ${error.message}</div>`;
+            }
+        }
+
+        async function executeQuery() {
+            const query = document.getElementById('queryInput').value.trim();
+            const resultsContainer = document.getElementById('resultsContainer');
+            const statusBar = document.getElementById('statusBar');
+            const welcomeMessage = document.getElementById('welcomeMessage');
+
+            if (!query) {
+                alert('Please enter a SQL query');
+                return;
+            }
+
+            resultsContainer.innerHTML = '<div class="loading">Executing query...</div>';
+            welcomeMessage.style.display = 'none';
+            statusBar.textContent = 'Executing...';
+
+            try {
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query, limit: currentLimit })
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    resultsContainer.innerHTML = `<div class="error">${data.error}</div>`;
+                    statusBar.textContent = 'Error';
+                    return;
+                }
+
+                displayResults(data.columns, data.rows);
+                statusBar.textContent = `${data.row_count} rows retrieved`;
+                document.getElementById('pagination').style.display = 'none';
+
+            } catch (error) {
+                resultsContainer.innerHTML = `<div class="error">Failed to execute query: ${error.message}</div>`;
+                statusBar.textContent = 'Error';
+            }
+        }
+
+        function displayResults(columns, rows) {
+            const resultsContainer = document.getElementById('resultsContainer');
+
+            if (rows.length === 0) {
+                resultsContainer.innerHTML = '<div class="info">No results found</div>';
+                return;
+            }
+
+            // Add table info header
+            const tableInfoHtml = `
+                <div style="padding: 15px; background: #f8f9fa; border-bottom: 2px solid #dee2e6; font-size: 13px;">
+                    <strong>📊 Table Information:</strong>
+                    <span style="margin-left: 20px;">
+                        <strong>Total Rows:</strong> ${totalCount ? totalCount.toLocaleString() : rows.length.toLocaleString()}
+                    </span>
+                    <span style="margin-left: 20px;">
+                        <strong>Total Columns:</strong> ${columns.length}
+                    </span>
+                    <span style="margin-left: 20px;">
+                        <strong>Columns:</strong> ${columns.join(', ')}
+                    </span>
+                </div>
+            `;
+
+            resultsContainer.innerHTML = tableInfoHtml + `
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="background: #e9ecef; color: #495057; font-weight: 700;">#</th>
+                            ${columns.map(col => `<th style="background: #e9ecef; color: #495057; font-weight: 700;">${col}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map((row, index) => `
+                            <tr>
+                                <td style="background: #f8f9fa; font-weight: 600; color: #6c757d;">${currentOffset + index + 1}</td>
+                                ${columns.map(col => `<td>${row[col] ?? '<span style="color: #999; font-style: italic;">NULL</span>'}</td>`).join('')}
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function updatePagination() {
+            const pagination = document.getElementById('pagination');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const firstBtn = document.getElementById('firstBtn');
+            const lastBtn = document.getElementById('lastBtn');
+            const pageInfo = document.getElementById('pageInfo');
+            const gotoPageInput = document.getElementById('gotoPageInput');
+
+            pagination.style.display = 'flex';
+
+            const currentPage = Math.floor(currentOffset / currentLimit) + 1;
+            const totalPages = Math.ceil(totalCount / currentLimit);
+
+            firstBtn.disabled = currentOffset === 0;
+            prevBtn.disabled = currentOffset === 0;
+            nextBtn.disabled = currentOffset + currentLimit >= totalCount;
+            lastBtn.disabled = currentOffset + currentLimit >= totalCount;
+
+            gotoPageInput.max = totalPages;
+            gotoPageInput.placeholder = `1-${totalPages}`;
+
+            pageInfo.textContent = `Page ${currentPage} of ${totalPages} (${totalCount.toLocaleString()} total rows)`;
+        }
+
+        function firstPage() {
+            if (currentOffset > 0) {
+                loadTableData(currentTable, 0);
+            }
+        }
+
+        function previousPage() {
+            if (currentOffset > 0) {
+                loadTableData(currentTable, currentOffset - currentLimit);
+            }
+        }
+
+        function nextPage() {
+            if (currentOffset + currentLimit < totalCount) {
+                loadTableData(currentTable, currentOffset + currentLimit);
+            }
+        }
+
+        function lastPage() {
+            if (currentOffset + currentLimit < totalCount) {
+                const lastPageOffset = Math.floor((totalCount - 1) / currentLimit) * currentLimit;
+                loadTableData(currentTable, lastPageOffset);
+            }
+        }
+
+        function gotoPage() {
+            const pageInput = document.getElementById('gotoPageInput');
+            const pageNumber = parseInt(pageInput.value);
+            const totalPages = Math.ceil(totalCount / currentLimit);
+
+            if (pageNumber >= 1 && pageNumber <= totalPages) {
+                const newOffset = (pageNumber - 1) * currentLimit;
+                loadTableData(currentTable, newOffset);
+                pageInput.value = '';
+            } else {
+                alert(`Please enter a page number between 1 and ${totalPages}`);
+            }
+        }
+
+        function changeLimit() {
+            const limitSelect = document.getElementById('limitSelect');
+            const newLimit = limitSelect.value;
+
+            if (newLimit === 'all') {
+                // Load all data
+                currentLimit = totalCount;
+                currentOffset = 0;
+                loadTableData(currentTable, 0);
+            } else {
+                currentLimit = parseInt(newLimit);
+                currentOffset = 0;
+                loadTableData(currentTable, 0);
+            }
+        }
+
+        function switchTab(tab) {
+            activeTab = tab;
+
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(t => {
+                t.classList.toggle('active', t.textContent.toLowerCase() === tab);
+            });
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+
+            if (tab === 'query') {
+                document.getElementById('queryTab').classList.add('active');
+                if (currentTable) {
+                    loadTableData(currentTable);
+                }
+            } else if (tab === 'structure') {
+                document.getElementById('structureTab').classList.add('active');
+                if (currentTable) {
+                    loadTableStructure(currentTable);
+                }
+            }
+        }
+
+        async function refreshTables() {
+            const statusBar = document.getElementById('statusBar');
+            const prevStatus = statusBar.textContent;
+
+            statusBar.textContent = 'Refreshing database from device...';
+
+            try {
+                // Call refresh endpoint to pull fresh data from device
+                const response = await fetch('/api/refresh-database', {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    alert('Failed to refresh database: ' + data.error);
+                    statusBar.textContent = prevStatus;
+                    return;
+                }
+
+                statusBar.textContent = 'Database refreshed! Reloading tables...';
+
+                // Reload tables and connection status
+                await loadTables();
+                await checkConnection();
+
+                statusBar.textContent = 'Database refreshed successfully from device';
+
+                // Show success message
+                setTimeout(() => {
+                    statusBar.textContent = 'Ready';
+                }, 3000);
+
+            } catch (error) {
+                alert('Error refreshing database: ' + error.message);
+                statusBar.textContent = prevStatus;
+            }
+        }
+
+        async function forcePullDatabase() {
+            const statusBar = document.getElementById('statusBar');
+            const prevStatus = statusBar.textContent;
+
+            if (!confirm('This will bypass cache and pull fresh data from the device. This may take 10-30 seconds. Continue?')) {
+                return;
+            }
+
+            statusBar.textContent = 'Force pulling fresh database from device (bypassing cache)...';
+
+            try {
+                const response = await fetch('/api/force-pull', {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    alert('Failed to force pull database: ' + data.error);
+                    statusBar.textContent = prevStatus;
+                    return;
+                }
+
+                statusBar.textContent = 'Fresh database pulled! Reloading tables...';
+
+                // Reload tables and connection status
+                await loadTables();
+                await checkConnection();
+
+                alert('✅ Fresh database pulled successfully from device!\nCache was bypassed to ensure latest data.');
+                statusBar.textContent = 'Fresh database loaded from device';
+
+                // Show success message
+                setTimeout(() => {
+                    statusBar.textContent = 'Ready';
+                }, 5000);
+
+            } catch (error) {
+                alert('Error force pulling database: ' + error.message);
+                statusBar.textContent = prevStatus;
+            }
+        }
+
+        async function clearCacheOnly() {
+            const statusBar = document.getElementById('statusBar');
+            const prevStatus = statusBar.textContent;
+
+            if (!confirm('Clear the database cache? Next query will pull fresh data from device.')) {
+                return;
+            }
+
+            statusBar.textContent = 'Clearing cache...';
+
+            try {
+                const response = await fetch('/api/clear-cache', {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    alert('Failed to clear cache: ' + data.error);
+                    statusBar.textContent = prevStatus;
+                    return;
+                }
+
+                alert('✅ Cache cleared successfully!\nNext query will pull fresh data from device.');
+                statusBar.textContent = 'Cache cleared - next query will be fresh';
+
+                setTimeout(() => {
+                    statusBar.textContent = 'Ready';
+                }, 3000);
+
+            } catch (error) {
+                alert('Error clearing cache: ' + error.message);
+                statusBar.textContent = prevStatus;
+            }
+        }
+
+        function clearQuery() {
+            document.getElementById('queryInput').value = '';
+            document.getElementById('resultsContainer').innerHTML = '';
+            document.getElementById('welcomeMessage').style.display = 'block';
+            document.getElementById('statusBar').textContent = 'Ready';
+        }
+
+        function formatQuery() {
+            const textarea = document.getElementById('queryInput');
+            let query = textarea.value;
+
+            // Basic SQL formatting
+            query = query.replace(/\s+/g, ' ').trim();
+            query = query.replace(/\b(SELECT|FROM|WHERE|AND|OR|ORDER BY|GROUP BY|LIMIT|JOIN|LEFT JOIN|RIGHT JOIN|INNER JOIN)\b/gi, '\n$1');
+            query = query.replace(/,/g, ',\n  ');
+
+            textarea.value = query;
+        }
+
+        function showError(message) {
+            const resultsContainer = document.getElementById('resultsContainer');
+            resultsContainer.innerHTML = `<div class="error">${message}</div>`;
+        }
+    </script>
+</body>
+</html>
