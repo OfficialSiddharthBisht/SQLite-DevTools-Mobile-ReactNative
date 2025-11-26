@@ -499,11 +499,16 @@ class SQLiteADBQueryTool:
             # Use the sqlite3 path determined during initialization
             sqlite_path = getattr(self, 'sqlite3_path', './sqlite3')
 
-            # Escape quotes in query for shell
-            escaped_query = query.replace('"', '\\"')
-
             # Check if this is a write query
             is_write = self.is_write_query(query)
+
+            # Escape the query for shell - handle both single and double quotes
+            # Replace backslashes first, then quotes
+            escaped_query = query.replace('\\', '\\\\')
+            escaped_query = escaped_query.replace('"', '\\"')
+            escaped_query = escaped_query.replace('$', '\\$')
+            escaped_query = escaped_query.replace('`', '\\`')
+            # Single quotes inside double quotes don't need escaping in most shells
 
             # Use JSON output mode for easier parsing (for SELECT queries)
             # For write queries, we just need to execute and check success
@@ -570,8 +575,11 @@ class SQLiteADBQueryTool:
             # Use the sqlite3 path determined during initialization
             sqlite_path = getattr(self, 'sqlite3_path', './sqlite3')
 
-            # Escape quotes in query
-            escaped_query = query.replace('"', '\\"')
+            # Escape the query for shell - handle special characters
+            escaped_query = query.replace('\\', '\\\\')
+            escaped_query = escaped_query.replace('"', '\\"')
+            escaped_query = escaped_query.replace('$', '\\$')
+            escaped_query = escaped_query.replace('`', '\\`')
 
             # Use -header and -separator modes
             sqlite_cmd = f'{sqlite_path} {db_path} -header -separator "|" "{escaped_query}"'

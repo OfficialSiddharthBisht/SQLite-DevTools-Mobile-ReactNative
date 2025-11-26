@@ -9,6 +9,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import sys
 import os
+import subprocess
 
 # Load environment variables
 load_dotenv()
@@ -22,28 +23,209 @@ from adb_sqlite_query_tool import SQLiteADBQueryTool
 app = Flask(__name__)
 CORS(app)
 
-# Load configuration from environment variables
-PACKAGE_NAME = os.getenv('PACKAGE_NAME', 'com.multiplex.winit')
-DB_NAME = os.getenv('DB_NAME', 'WINITSQLite.db')
-DEVICE_SERIAL = os.getenv('DEVICE_SERIAL', 'R8AYE6DINBTOGUK7')
-USE_CACHE = os.getenv('USE_CACHE', 'True').lower() == 'true'
-FORCE_LOCAL = os.getenv('FORCE_LOCAL', 'False').lower() == 'true'
+# Global configuration - can be modified at runtime via API
+app_config = {
+    'package_name': os.getenv('PACKAGE_NAME', 'com.multiplex.winit'),
+    'db_name': os.getenv('DB_NAME', 'WINITSQLite.db'),
+    'db_path': os.getenv('DB_PATH', ''),  # Custom path, empty means auto-detect
+    'device_serial': os.getenv('DEVICE_SERIAL', ''),
+    'use_cache': os.getenv('USE_CACHE', 'True').lower() == 'true',
+    'force_local': os.getenv('FORCE_LOCAL', 'False').lower() == 'true'
+}
 
-# Initialize the ADB tool
 def get_adb_tool():
-    """Get or create ADB tool instance"""
+    """Get or create ADB tool instance with current configuration"""
     return SQLiteADBQueryTool(
-        package_name=PACKAGE_NAME,
-        db_name=DB_NAME,
-        force_local=FORCE_LOCAL,
-        use_cache=USE_CACHE,
-        device_serial=DEVICE_SERIAL
+        package_name=app_config['package_name'],
+        db_name=app_config['db_name'],
+        force_local=app_config['force_local'],
+        use_cache=app_config['use_cache'],
+        device_serial=app_config['device_serial'] if app_config['device_serial'] else None
     )
 
 @app.route('/')
 def index():
     """Serve the main page"""
     return render_template('index.html')
+
+@app.route('/api/devices', methods=['GET'])
+def get_devices():
+    """Get list of connected ADB devices"""
+    try:
+        result = subprocess.run(['adb', 'devices', '-l'],
+                              capture_output=True, text=True, timeout=10)
+
+        if result.returncode != 0:
+            return jsonify({'success': False, 'error': 'ADB command failed'})
+
+        devices = []
+        lines = result.stdout.strip().split('\n')[1:]  # Skip header
+
+        for line in lines:
+            if not line.strip():
+                continue
+            parts = line.split()
+            if len(parts) >= 2 and parts[1] == 'device':
+                serial = parts[0]
+                # Parse device info from the -l output
+                model = ''
+                product = ''
+                for part in parts[2:]:
+                    if part.startswith('model:'):
+                        model = part.split(':')[1]
+                    elif part.startswith('product:'):
+                        product = part.split(':')[1]
+
+                devices.append({
+                    'serial': serial,
+                    'model': model,
+                    'product': product,
+                    'display_name': f"{model or product or serial} ({serial})"
+                })
+
+        return jsonify({
+            'success': True,
+            'devices': devices,
+            'current_device': app_config['device_serial']
+        })
+
+    except subprocess.TimeoutExpired:
+        return jsonify({'success': False, 'error': 'ADB command timed out'})
+    except FileNotFoundError:
+        return jsonify({'success': False, 'error': 'ADB not found. Make sure Android SDK is installed.'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/packages', methods=['GET'])
+def get_packages():
+    """Get list of installed packages on the selected device"""
+    try:
+        device_serial = request.args.get('device', app_config['device_serial'])
+
+        # Build ADB command with optional device serial
+        adb_cmd = ['adb']
+        if device_serial:
+            adb_cmd.extend(['-s', device_serial])
+        adb_cmd.extend(['shell', 'pm', 'list', 'packages', '-3'])  # -3 for third-party apps only
+
+        result = subprocess.run(adb_cmd, capture_output=True, text=True, timeout=30)
+
+        if result.returncode != 0:
+            return jsonify({'success': False, 'error': f'Failed to get packages: {result.stderr}'})
+
+        packages = []
+        for line in result.stdout.strip().split('\n'):
+            if line.startswith('package:'):
+                package_name = line.replace('package:', '').strip()
+                if package_name:
+                    packages.append(package_name)
+
+        # Sort packages alphabetically
+        packages.sort()
+
+        return jsonify({
+            'success': True,
+            'packages': packages,
+            'current_package': app_config['package_name']
+        })
+
+    except subprocess.TimeoutExpired:
+        return jsonify({'success': False, 'error': 'ADB command timed out'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/config', methods=['GET'])
+def get_config():
+    """Get current configuration"""
+    return jsonify({
+        'success': True,
+        'config': {
+            'device_serial': app_config['device_serial'],
+            'package_name': app_config['package_name'],
+            'db_name': app_config['db_name'],
+            'db_path': app_config['db_path'],
+            'use_cache': app_config['use_cache'],
+            'force_local': app_config['force_local']
+        }
+    })
+
+@app.route('/api/config', methods=['POST'])
+def update_config():
+    """Update configuration settings"""
+    try:
+        data = request.json
+
+        # Update configuration with provided values
+        if 'device_serial' in data:
+            app_config['device_serial'] = data['device_serial']
+        if 'package_name' in data:
+            app_config['package_name'] = data['package_name']
+        if 'db_name' in data:
+            app_config['db_name'] = data['db_name']
+        if 'db_path' in data:
+            app_config['db_path'] = data['db_path']
+        if 'use_cache' in data:
+            app_config['use_cache'] = bool(data['use_cache'])
+        if 'force_local' in data:
+            app_config['force_local'] = bool(data['force_local'])
+
+        return jsonify({
+            'success': True,
+            'message': 'Configuration updated successfully',
+            'config': app_config
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/databases', methods=['GET'])
+def get_databases():
+    """Get list of SQLite databases for the selected package"""
+    try:
+        device_serial = request.args.get('device', app_config['device_serial'])
+        package_name = request.args.get('package', app_config['package_name'])
+
+        # Build ADB command
+        adb_cmd = ['adb']
+        if device_serial:
+            adb_cmd.extend(['-s', device_serial])
+
+        databases = []
+
+        # Check multiple possible database locations
+        db_locations = ['databases', 'files', 'files/SQLite']
+
+        for location in db_locations:
+            cmd = adb_cmd + ['shell', f'run-as {package_name} ls {location} 2>/dev/null']
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+
+            if result.returncode == 0:
+                for file in result.stdout.strip().split('\n'):
+                    file = file.strip()
+                    if file and (file.endswith('.db') or file.endswith('.sqlite') or file.endswith('.sqlite3')):
+                        databases.append({
+                            'name': file,
+                            'path': f'{location}/{file}'
+                        })
+
+        # Remove duplicates based on name
+        seen = set()
+        unique_databases = []
+        for db in databases:
+            if db['name'] not in seen:
+                seen.add(db['name'])
+                unique_databases.append(db)
+
+        return jsonify({
+            'success': True,
+            'databases': unique_databases,
+            'current_db': app_config['db_name']
+        })
+
+    except subprocess.TimeoutExpired:
+        return jsonify({'success': False, 'error': 'ADB command timed out'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/check-connection', methods=['GET'])
 def check_connection():
@@ -210,7 +392,6 @@ def clear_cache():
 def force_pull():
     """Force pull fresh database from device (clears cache first)"""
     try:
-        import subprocess
         import tempfile
         from pathlib import Path
 
@@ -229,12 +410,12 @@ def force_pull():
         # Force pull with cache enabled (so it saves to cache directory)
         # but force_pull=True bypasses the cache check and re-pulls
         tool_force = SQLiteADBQueryTool(
-            package_name=PACKAGE_NAME,
-            db_name=DB_NAME,
+            package_name=app_config['package_name'],
+            db_name=app_config['db_name'],
             force_local=True,
             use_cache=True,
             force_pull=True,
-            device_serial=DEVICE_SERIAL
+            device_serial=app_config['device_serial'] if app_config['device_serial'] else None
         )
 
         # Pull fresh database
@@ -243,18 +424,26 @@ def force_pull():
 
         # Fix gzip decompression issue
         cache_dir = Path(tempfile.gettempdir()) / "adb_sqlite_cache"
-        db_file = cache_dir / f"{PACKAGE_NAME}_{DB_NAME}"
+        db_file = cache_dir / f"{app_config['package_name']}_{app_config['db_name']}"
 
         if db_file.exists():
-            # Check if file is gzipped
-            result = subprocess.run(['file', str(db_file)], capture_output=True, text=True)
-            if 'gzip compressed data' in result.stdout:
-                print(f"🔧 Detected gzipped database, decompressing...")
-                # Decompress the file
-                gz_file = str(db_file) + '.gz'
-                db_file.rename(gz_file)
-                subprocess.run(['gunzip', gz_file], check=True)
-                print(f"✅ Database decompressed successfully")
+            # Check if file is gzipped (Windows compatible check)
+            try:
+                with open(db_file, 'rb') as f:
+                    magic = f.read(2)
+                if magic == b'\x1f\x8b':  # gzip magic number
+                    print(f"Detected gzipped database, decompressing...")
+                    import gzip
+                    import shutil
+                    gz_file = str(db_file) + '.gz'
+                    db_file.rename(gz_file)
+                    with gzip.open(gz_file, 'rb') as f_in:
+                        with open(db_file, 'wb') as f_out:
+                            shutil.copyfileobj(f_in, f_out)
+                    os.unlink(gz_file)
+                    print(f"Database decompressed successfully")
+            except Exception as e:
+                print(f"Warning: Could not check/decompress file: {e}")
 
         return jsonify({
             'success': True,
@@ -267,7 +456,6 @@ def force_pull():
 def refresh_database():
     """Force refresh database from device"""
     try:
-        import subprocess
         import tempfile
         from pathlib import Path
 
@@ -289,18 +477,26 @@ def refresh_database():
 
         # Fix gzip decompression issue
         cache_dir = Path(tempfile.gettempdir()) / "adb_sqlite_cache"
-        db_file = cache_dir / f"{PACKAGE_NAME}_{DB_NAME}"
+        db_file = cache_dir / f"{app_config['package_name']}_{app_config['db_name']}"
 
         if db_file.exists():
-            # Check if file is gzipped
-            result = subprocess.run(['file', str(db_file)], capture_output=True, text=True)
-            if 'gzip compressed data' in result.stdout:
-                print(f"🔧 Detected gzipped database, decompressing...")
-                # Decompress the file
-                gz_file = str(db_file) + '.gz'
-                db_file.rename(gz_file)
-                subprocess.run(['gunzip', gz_file], check=True)
-                print(f"✅ Database decompressed successfully")
+            # Check if file is gzipped (Windows compatible check)
+            try:
+                with open(db_file, 'rb') as f:
+                    magic = f.read(2)
+                if magic == b'\x1f\x8b':  # gzip magic number
+                    print(f"Detected gzipped database, decompressing...")
+                    import gzip
+                    import shutil
+                    gz_file = str(db_file) + '.gz'
+                    db_file.rename(gz_file)
+                    with gzip.open(gz_file, 'rb') as f_in:
+                        with open(db_file, 'wb') as f_out:
+                            shutil.copyfileobj(f_in, f_out)
+                    os.unlink(gz_file)
+                    print(f"Database decompressed successfully")
+            except Exception as e:
+                print(f"Warning: Could not check/decompress file: {e}")
 
         return jsonify({
             'success': True,
