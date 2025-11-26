@@ -23,9 +23,9 @@ app = Flask(__name__)
 CORS(app)
 
 # Load configuration from environment variables
-PACKAGE_NAME = os.getenv('PACKAGE_NAME', 'com.winitsoftware.emiratessnacks')
-DB_NAME = os.getenv('DB_NAME', 'master_data.db')
-DEVICE_SERIAL = os.getenv('DEVICE_SERIAL', 'RZCT920VAZN')
+PACKAGE_NAME = os.getenv('PACKAGE_NAME', 'com.multiplex.winit')
+DB_NAME = os.getenv('DB_NAME', 'WINITSQLite.db')
+DEVICE_SERIAL = os.getenv('DEVICE_SERIAL', 'R8AYE6DINBTOGUK7')
 USE_CACHE = os.getenv('USE_CACHE', 'True').lower() == 'true'
 FORCE_LOCAL = os.getenv('FORCE_LOCAL', 'False').lower() == 'true'
 
