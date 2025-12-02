@@ -66,6 +66,7 @@ class SQLiteADBQueryTool:
         self.user_id = user_id
         self.device_serial = device_serial
         self.run_as_supported = None  # Cache run-as support check
+        self.last_error = None  # Store last error message for API responses
 
         # Setup cache directory
         self.cache_dir = Path(tempfile.gettempdir()) / "adb_sqlite_cache"
@@ -490,10 +491,12 @@ class SQLiteADBQueryTool:
         Returns:
             List of dictionaries containing query results, or None if error
         """
+        self.last_error = None  # Clear previous error
         try:
             db_path = self.find_database_path()
             if not db_path:
-                print("❌ Could not find database path on device")
+                self.last_error = "Could not find database path on device"
+                print(f"❌ {self.last_error}")
                 return None
 
             # Use the sqlite3 path determined during initialization
@@ -523,11 +526,18 @@ class SQLiteADBQueryTool:
             )
 
             if result.returncode != 0:
-                error_msg = result.stderr.strip()
+                error_msg = result.stderr.strip() or result.stdout.strip()
                 if "not debuggable" in error_msg.lower():
                     print("⚠️  run-as not supported. Falling back to local execution.")
                     return None
-                print(f"❌ Remote query failed: {error_msg}")
+                # Extract SQLite error message
+                if "Error:" in error_msg:
+                    self.last_error = error_msg.split("Error:")[-1].strip()
+                elif "error" in error_msg.lower():
+                    self.last_error = error_msg
+                else:
+                    self.last_error = error_msg or "Remote query execution failed"
+                print(f"❌ Remote query failed: {self.last_error}")
                 return None
 
             # For write queries, return empty list to indicate success
@@ -553,10 +563,12 @@ class SQLiteADBQueryTool:
                 return self._execute_remote_query_fallback(query, db_path)
 
         except subprocess.TimeoutExpired:
-            print("❌ Remote query timed out")
+            self.last_error = "Query timed out (exceeded 60 seconds)"
+            print(f"❌ {self.last_error}")
             return None
         except Exception as e:
-            print(f"❌ Error executing remote query: {e}")
+            self.last_error = f"Error executing remote query: {e}"
+            print(f"❌ {self.last_error}")
             return None
 
     def _execute_remote_query_fallback(self, query: str, db_path: str) -> Optional[List[Dict[str, Any]]]:
@@ -998,10 +1010,12 @@ class SQLiteADBQueryTool:
         Returns:
             List of dictionaries containing query results, or None if error
         """
+        self.last_error = None  # Clear previous error
         if not self.local_db_path or not os.path.exists(self.local_db_path):
             print("📥 Pulling database for local execution...")
             if not self.pull_database():
-                print("❌ Failed to pull database for local execution.")
+                self.last_error = "Failed to pull database for local execution"
+                print(f"❌ {self.last_error}")
                 return None
 
         try:
@@ -1031,7 +1045,8 @@ class SQLiteADBQueryTool:
                 return []  # Return empty list to indicate success
 
         except sqlite3.Error as e:
-            print(f"❌ SQLite error: {e}")
+            self.last_error = str(e)
+            print(f"❌ SQLite error: {self.last_error}")
             return None
         finally:
             if 'conn' in locals():

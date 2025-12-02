@@ -311,7 +311,8 @@ def execute_query():
         results = tool.execute_query(query, limit=limit)
 
         if results is None:
-            return jsonify({'success': False, 'error': 'Query execution failed'})
+            error_msg = tool.last_error if tool.last_error else 'Query execution failed'
+            return jsonify({'success': False, 'error': error_msg})
 
         # Get column names from first result if available
         columns = list(results[0].keys()) if results else []

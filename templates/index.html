@@ -361,6 +361,7 @@
     <div class="main-content">
         <div class="toolbar">
             <button class="primary" onclick="executeQuery()">Execute (F5)</button>
+            <button onclick="executeAllQuery()" title="Run the entire query ignoring selection">Execute All</button>
             <button onclick="refreshTables()">Refresh Tables</button>
             <button onclick="forcePullDatabase()" style="background: #e67e22; color: white; border-color: #e67e22;">Force Pull from Device</button>
             <button onclick="clearCacheOnly()">Clear Cache</button>
@@ -431,7 +432,7 @@
             checkConnection();
             loadTables();
 
-            // Add keyboard shortcut for F5
+            // Add keyboard shortcut for F5 (execute selected or all)
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'F5') {
                     e.preventDefault();
@@ -593,13 +594,72 @@
             }
         }
 
+        function getSelectedText() {
+            const textarea = document.getElementById('queryInput');
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+
+            if (start !== end) {
+                return textarea.value.substring(start, end).trim();
+            }
+            return null;
+        }
+
         async function executeQuery() {
-            const query = document.getElementById('queryInput').value.trim();
+            const selectedText = getSelectedText();
+            const fullQuery = document.getElementById('queryInput').value.trim();
+            const query = selectedText || fullQuery;
+            const isSelected = !!selectedText;
+
             const resultsContainer = document.getElementById('resultsContainer');
             const statusBar = document.getElementById('statusBar');
             const welcomeMessage = document.getElementById('welcomeMessage');
 
             if (!query) {
+                alert('Please enter a SQL query');
+                return;
+            }
+
+            resultsContainer.innerHTML = '<div class="loading">Executing query...</div>';
+            welcomeMessage.style.display = 'none';
+            statusBar.textContent = isSelected ? 'Executing selected...' : 'Executing...';
+
+            try {
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query, limit: currentLimit })
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    resultsContainer.innerHTML = `<div class="error">${data.error}</div>`;
+                    statusBar.textContent = 'Error';
+                    return;
+                }
+
+                displayResults(data.columns, data.rows);
+                statusBar.textContent = isSelected
+                    ? `${data.row_count} rows retrieved (selected query)`
+                    : `${data.row_count} rows retrieved`;
+                document.getElementById('pagination').style.display = 'none';
+
+            } catch (error) {
+                resultsContainer.innerHTML = `<div class="error">Failed to execute query: ${error.message}</div>`;
+                statusBar.textContent = 'Error';
+            }
+        }
+
+        async function executeAllQuery() {
+            const fullQuery = document.getElementById('queryInput').value.trim();
+            const resultsContainer = document.getElementById('resultsContainer');
+            const statusBar = document.getElementById('statusBar');
+            const welcomeMessage = document.getElementById('welcomeMessage');
+
+            if (!fullQuery) {
                 alert('Please enter a SQL query');
                 return;
             }
@@ -614,7 +674,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ query, limit: currentLimit })
+                    body: JSON.stringify({ query: fullQuery, limit: currentLimit })
                 });
 
                 const data = await response.json();
