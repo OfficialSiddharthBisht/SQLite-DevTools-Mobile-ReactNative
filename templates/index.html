@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -85,31 +86,92 @@
         }
 
         .table-item {
-            padding: 12px 20px;
-            cursor: pointer;
+            padding: 0;
+            cursor: default;
             transition: background 0.2s;
             border-left: 3px solid transparent;
+            display: block;
         }
 
-        .table-item:hover {
-            background: #34495e;
-            border-left-color: #3498db;
+        .accordion-header {
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.2s;
         }
 
-        .table-item.active {
+        .accordion-header:hover {
             background: #34495e;
-            border-left-color: #3498db;
+        }
+
+        .accordion-header .arrow {
+            margin-right: 8px;
+            font-size: 10px;
+            transition: transform 0.2s;
+            color: #95a5a6;
+        }
+
+        .table-item.expanded .arrow {
+            transform: rotate(90deg);
         }
 
         .table-item-name {
+            flex: 1;
             font-size: 14px;
             font-weight: 500;
-            margin-bottom: 3px;
         }
 
-        .table-item-count {
+        .query-btn {
+            padding: 2px 8px;
             font-size: 11px;
-            color: #95a5a6;
+            background: #3498db;
+            border: none;
+            border-radius: 3px;
+            color: white;
+            cursor: pointer;
+            margin-left: 8px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .accordion-header:hover .query-btn {
+            opacity: 1;
+        }
+
+        .query-btn:hover {
+            background: #2980b9;
+        }
+
+        .accordion-content {
+            display: none;
+            background: #233342;
+            padding: 5px 15px 5px 33px;
+            font-size: 12px;
+            border-top: 1px solid #34495e;
+        }
+
+        .table-item.expanded .accordion-content {
+            display: block;
+        }
+
+        .column-item {
+            padding: 3px 0;
+            color: #bdc3c7;
+            display: flex;
+            justify-content: space-between;
+            font-family: monospace;
+        }
+
+        .column-type {
+            color: #7f8c8d;
+            font-size: 10px;
+            margin-left: 10px;
+        }
+
+        .pk-badge {
+            color: #f1c40f;
+            margin-right: 4px;
         }
 
         /* Main Content */
@@ -331,8 +393,13 @@
 
         /* Refresh button animation */
         @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         .spinning {
@@ -340,6 +407,7 @@
         }
     </style>
 </head>
+
 <body>
     <!-- Sidebar -->
     <div class="sidebar">
@@ -363,7 +431,8 @@
             <button class="primary" onclick="executeQuery()">Execute (F5)</button>
             <button onclick="executeAllQuery()" title="Run the entire query ignoring selection">Execute All</button>
             <button onclick="refreshTables()">Refresh Tables</button>
-            <button onclick="forcePullDatabase()" style="background: #e67e22; color: white; border-color: #e67e22;">Force Pull from Device</button>
+            <button onclick="forcePullDatabase()"
+                style="background: #e67e22; color: white; border-color: #e67e22;">Force Pull from Device</button>
             <button onclick="clearCacheOnly()">Clear Cache</button>
             <button onclick="clearQuery()">Clear Query</button>
             <button onclick="formatQuery()">Format</button>
@@ -395,7 +464,8 @@
                     <button onclick="lastPage()" id="lastBtn">Last</button>
                     <span style="margin-left: 20px;">|</span>
                     <label style="margin-left: 10px;">Go to page:</label>
-                    <input type="number" id="gotoPageInput" min="1" style="width: 80px; padding: 4px;" onkeypress="if(event.key === 'Enter') gotoPage()">
+                    <input type="number" id="gotoPageInput" min="1" style="width: 80px; padding: 4px;"
+                        onkeypress="if(event.key === 'Enter') gotoPage()">
                     <button onclick="gotoPage()">Go</button>
                     <span style="margin-left: 20px;">|</span>
                     <label style="margin-left: 10px;">Rows per page:</label>
@@ -484,9 +554,15 @@
                 }
 
                 tablesList.innerHTML = data.tables.map(table => `
-                    <div class="table-item" data-table="${table.name}" onclick="selectTable('${table.name}')">
-                        <div class="table-item-name">${table.name}</div>
-                        <div class="table-item-count">${table.row_count.toLocaleString()} rows</div>
+                    <div class="table-item" data-table="${table.name}">
+                        <div class="accordion-header" onclick="toggleAccordion(this, '${table.name}')">
+                            <span class="arrow">▶</span>
+                            <div class="table-item-name">${table.name}</div>
+                            <button class="query-btn" onclick="event.stopPropagation(); selectTable('${table.name}')">Query</button>
+                        </div>
+                        <div class="accordion-content" id="structure-${table.name}">
+                            <div style="color: #95a5a6; font-style: italic;">Loading columns...</div>
+                        </div>
                     </div>
                 `).join('');
 
@@ -512,7 +588,16 @@
 
             // Update active state
             document.querySelectorAll('.table-item').forEach(item => {
-                item.classList.toggle('active', item.dataset.table === tableName);
+                const header = item.querySelector('.accordion-header');
+                const isActive = item.dataset.table === tableName;
+
+                if (isActive) {
+                    item.style.borderLeftColor = '#3498db';
+                    header.style.background = '#34495e';
+                } else {
+                    item.style.borderLeftColor = 'transparent';
+                    header.style.background = '';
+                }
             });
 
             // Set query
@@ -523,6 +608,51 @@
                 await loadTableData(tableName);
             } else {
                 await loadTableStructure(tableName);
+            }
+        }
+
+        async function toggleAccordion(element, tableName) {
+            const tableItem = element.closest('.table-item');
+            const content = tableItem.querySelector('.accordion-content');
+            const wasExpanded = tableItem.classList.contains('expanded');
+
+            // Toggle class
+            tableItem.classList.toggle('expanded');
+
+            // If expanding and content is empty (or just loading text), load structure
+            if (!wasExpanded && !content.dataset.loaded) {
+                await loadSidebarStructure(tableName, content);
+            }
+        }
+
+        async function loadSidebarStructure(tableName, container) {
+            try {
+                const response = await fetch(`/api/table-structure/${tableName}`);
+                const data = await response.json();
+
+                if (!data.success) {
+                    container.innerHTML = `<div style="color: #e74c3c">Error loading structure</div>`;
+                    return;
+                }
+
+                container.dataset.loaded = "true";
+                if (!data.columns || data.columns.length === 0) {
+                    container.innerHTML = '<div style="color: #95a5a6">No columns</div>';
+                    return;
+                }
+
+                container.innerHTML = data.columns.map(col => `
+                    <div class="column-item">
+                        <span>
+                            ${col.pk ? '<span class="pk-badge" title="Primary Key">🔑</span>' : ''}
+                            ${col.name}
+                        </span>
+                        <span class="column-type">${col.type}</span>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                container.innerHTML = `<div style="color: #e74c3c">Error: ${error.message}</div>`;
             }
         }
 
@@ -988,4 +1118,5 @@
         }
     </script>
 </body>
+
 </html>
