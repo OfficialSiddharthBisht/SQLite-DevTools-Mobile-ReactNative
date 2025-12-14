@@ -261,10 +261,10 @@ def get_tables():
         # Get row counts for each table
         table_info = []
         for table in tables:
-            count = tool.get_table_count(table)
+            # count = tool.get_table_count(table)
             table_info.append({
                 'name': table,
-                'row_count': count
+                'row_count': 0
             })
 
         return jsonify({'success': True, 'tables': table_info})
