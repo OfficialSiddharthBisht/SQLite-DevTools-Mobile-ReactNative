@@ -502,6 +502,17 @@
             checkConnection();
             loadTables();
 
+            // Load saved query from localStorage
+            const savedQuery = localStorage.getItem('sqliteViewerQuery');
+            if (savedQuery) {
+                document.getElementById('queryInput').value = savedQuery;
+            }
+
+            // Save query to localStorage on input
+            document.getElementById('queryInput').addEventListener('input', (e) => {
+                localStorage.setItem('sqliteViewerQuery', e.target.value);
+            });
+
             // Add keyboard shortcut for F5 (execute selected or all)
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'F5') {
@@ -600,8 +611,19 @@
                 }
             });
 
-            // Set query
-            document.getElementById('queryInput').value = `SELECT * FROM ${tableName}`;
+            // Append query (with newline if there's existing content)
+            const queryInput = document.getElementById('queryInput');
+            const existingQuery = queryInput.value.trim();
+            const newQuery = `SELECT * FROM ${tableName}`;
+
+            if (existingQuery) {
+                queryInput.value = existingQuery + '\n\n' + newQuery;
+            } else {
+                queryInput.value = newQuery;
+            }
+
+            // Save to localStorage
+            localStorage.setItem('sqliteViewerQuery', queryInput.value);
 
             // Load table data
             if (activeTab === 'query') {
@@ -1098,6 +1120,7 @@
             document.getElementById('resultsContainer').innerHTML = '';
             document.getElementById('welcomeMessage').style.display = 'block';
             document.getElementById('statusBar').textContent = 'Ready';
+            localStorage.removeItem('sqliteViewerQuery');
         }
 
         function formatQuery() {
