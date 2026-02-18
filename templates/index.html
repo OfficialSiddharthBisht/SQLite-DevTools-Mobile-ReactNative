@@ -60,6 +60,250 @@
             color: white;
         }
 
+        /* Config Section - top panel */
+        .config-section {
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .config-toggle {
+            padding: 8px 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: #495057;
+            background: #e9ecef;
+            border-bottom: 1px solid #dee2e6;
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        .config-toggle:hover {
+            background: #dee2e6;
+        }
+
+        .config-toggle .toggle-arrow {
+            font-size: 10px;
+            transition: transform 0.2s;
+            color: #6c757d;
+        }
+
+        .config-section.expanded .toggle-arrow {
+            transform: rotate(180deg);
+        }
+
+        .config-panel {
+            display: none;
+            padding: 12px 20px;
+        }
+
+        .config-section.expanded .config-panel {
+            display: block;
+        }
+
+        .config-row {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .config-group {
+            flex: 1;
+            min-width: 180px;
+        }
+
+        .config-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6c757d;
+            margin-bottom: 4px;
+        }
+
+        .config-group select,
+        .config-group input[type="text"] {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            background: white;
+            color: #495057;
+            font-size: 12px;
+            appearance: auto;
+        }
+
+        .config-group select:focus,
+        .config-group input[type="text"]:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.15);
+        }
+
+        .config-group .input-with-btn {
+            display: flex;
+            gap: 6px;
+        }
+
+        .config-group .input-with-btn input {
+            flex: 1;
+        }
+
+        .config-group .input-with-btn button {
+            padding: 6px 12px;
+            border: 1px solid #3498db;
+            border-radius: 4px;
+            background: #3498db;
+            color: white;
+            font-size: 11px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .config-group .input-with-btn button:hover {
+            background: #2980b9;
+        }
+
+        /* Generic dropdown used by both package search and db search */
+        .combo-dropdown {
+            max-height: 220px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #ced4da;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            display: none;
+            position: absolute;
+            z-index: 100;
+            left: 0;
+            right: 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .combo-dropdown.visible {
+            display: block;
+        }
+
+        .combo-item {
+            padding: 7px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            color: #495057;
+        }
+
+        .combo-item:last-child {
+            border-bottom: none;
+        }
+
+        .combo-item:hover,
+        .combo-item.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .combo-item .item-sub {
+            font-size: 10px;
+            color: #6c757d;
+            margin-top: 2px;
+        }
+
+        .combo-item:hover .item-sub,
+        .combo-item.active .item-sub {
+            color: #d5e8f7;
+        }
+
+        .combo-empty {
+            padding: 10px;
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+            font-style: italic;
+        }
+
+        .combo-wrapper {
+            position: relative;
+        }
+
+        .combo-wrapper input {
+            padding-right: 28px;
+        }
+
+        .combo-clear {
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #999;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1;
+            display: none;
+        }
+
+        .combo-clear:hover {
+            color: #e74c3c;
+        }
+
+        .combo-wrapper.has-value .combo-clear {
+            display: block;
+        }
+
+        /* Backward compat aliases */
+        .search-results-dropdown {
+            max-height: 220px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #ced4da;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            display: none;
+            position: absolute;
+            z-index: 100;
+            left: 0;
+            right: 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .search-results-dropdown.visible {
+            display: block;
+        }
+
+        .search-result-item {
+            padding: 7px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            color: #495057;
+        }
+
+        .search-result-item:hover {
+            background: #3498db;
+            color: white;
+        }
+
+        .search-result-item .file-name {
+            font-weight: 600;
+        }
+
+        .search-result-item .file-path {
+            font-size: 10px;
+            color: #6c757d;
+            margin-top: 2px;
+        }
+
+        .search-result-item:hover .file-path {
+            color: #d5e8f7;
+        }
+
         .sidebar-search {
             padding: 15px;
             border-bottom: 1px solid #34495e;
@@ -427,6 +671,50 @@
 
     <!-- Main Content -->
     <div class="main-content">
+        <!-- Collapsible Configuration Panel -->
+        <div class="config-section expanded" id="configSection">
+            <div class="config-toggle" onclick="toggleConfig()">
+                <span class="toggle-arrow">&#9660;</span>
+                <span>Device &amp; Database Configuration</span>
+            </div>
+            <div class="config-panel">
+                <div class="config-row">
+                    <div class="config-group">
+                        <label>Device</label>
+                        <select id="deviceSelect" onchange="onDeviceChange()">
+                            <option value="">Loading devices...</option>
+                        </select>
+                    </div>
+                    <div class="config-group" style="position: relative;">
+                        <label>Package (debuggable only)</label>
+                        <div class="combo-wrapper" id="packageComboWrapper">
+                            <input type="text" id="packageSearchInput"
+                                placeholder="Loading packages..."
+                                onfocus="showPackageDropdown()"
+                                oninput="filterPackageDropdown()">
+                            <button class="combo-clear" onclick="clearPackageSelection(event)" title="Clear selection">&times;</button>
+                        </div>
+                        <div class="combo-dropdown" id="packageDropdown"></div>
+                    </div>
+                    <div class="config-group">
+                        <label>Database File</label>
+                        <select id="databaseSelect" onchange="onDatabaseChange()">
+                            <option value="">Select a package first</option>
+                        </select>
+                    </div>
+                    <div class="config-group" style="position: relative;">
+                        <label>Search SQLite Files</label>
+                        <div class="input-with-btn">
+                            <input type="text" id="dbSearchInput" placeholder="Search for .db files..."
+                                oninput="onDbSearchInput()" onkeydown="if(event.key==='Enter') searchDatabases()">
+                            <button onclick="searchDatabases()">Search</button>
+                        </div>
+                        <div class="search-results-dropdown" id="searchResultsDropdown"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="toolbar">
             <button class="primary" onclick="executeQuery()">Execute (F5)</button>
             <button onclick="executeAllQuery()" title="Run the entire query ignoring selection">Execute All</button>
@@ -496,16 +784,22 @@
         let currentLimit = 100;
         let totalCount = 0;
         let activeTab = 'query';
+        let dbSearchTimeout = null;
+        let allPackages = [];        // full list from API
+        let selectedPackageName = ''; // currently selected package
 
         // Check connection on load
-        window.addEventListener('DOMContentLoaded', () => {
-            checkConnection();
-            loadTables();
-
+        window.addEventListener('DOMContentLoaded', async () => {
             // Load saved query from localStorage
             const savedQuery = localStorage.getItem('sqliteViewerQuery');
             if (savedQuery) {
                 document.getElementById('queryInput').value = savedQuery;
+            }
+
+            // Restore config section collapse state
+            const configCollapsed = localStorage.getItem('sqliteViewerConfigCollapsed');
+            if (configCollapsed === 'true') {
+                document.getElementById('configSection').classList.remove('expanded');
             }
 
             // Save query to localStorage on input
@@ -525,7 +819,386 @@
             document.getElementById('tableSearch').addEventListener('input', (e) => {
                 filterTables(e.target.value);
             });
+
+            // Close dropdowns when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#searchResultsDropdown') && !e.target.closest('#dbSearchInput')) {
+                    document.getElementById('searchResultsDropdown').classList.remove('visible');
+                }
+                if (!e.target.closest('#packageDropdown') && !e.target.closest('#packageSearchInput')) {
+                    document.getElementById('packageDropdown').classList.remove('visible');
+                }
+            });
+
+            // Initialize: load devices first, then cascade
+            await loadDevices();
+
+            // Always check connection after init, even if cascade stopped early
+            await checkConnection();
+
+            // If no database was selected by the cascade, show a helpful message
+            if (!document.getElementById('databaseSelect').value) {
+                document.getElementById('tablesList').innerHTML =
+                    '<div class="info" style="margin: 10px; font-size: 12px;">Select a device, package, and database above to view tables.</div>';
+            }
         });
+
+        // ========== Configuration Panel Functions ==========
+
+        function toggleConfig() {
+            const section = document.getElementById('configSection');
+            section.classList.toggle('expanded');
+            localStorage.setItem('sqliteViewerConfigCollapsed', !section.classList.contains('expanded'));
+        }
+
+        async function loadDevices() {
+            const select = document.getElementById('deviceSelect');
+            select.innerHTML = '<option value="">Loading devices...</option>';
+
+            try {
+                const response = await fetch('/api/devices');
+                const data = await response.json();
+
+                if (!data.success) {
+                    select.innerHTML = '<option value="">Error loading devices</option>';
+                    return;
+                }
+
+                const savedDevice = localStorage.getItem('sqliteViewerDevice');
+                select.innerHTML = '<option value="">-- Auto (any device) --</option>';
+
+                data.devices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.serial;
+                    option.textContent = device.display_name;
+                    if (savedDevice && device.serial === savedDevice) {
+                        option.selected = true;
+                    }
+                    select.appendChild(option);
+                });
+
+                // If only one device, auto-select it
+                if (data.devices.length === 1 && !savedDevice) {
+                    select.value = data.devices[0].serial;
+                }
+
+                // Trigger device change to cascade (update config + load packages)
+                await onDeviceChange(true);
+
+            } catch (error) {
+                select.innerHTML = '<option value="">Failed to load devices</option>';
+                // Still try to load with defaults
+                await checkConnection();
+                await loadTables();
+            }
+        }
+
+        async function onDeviceChange(isInit = false) {
+            const deviceSerial = document.getElementById('deviceSelect').value;
+
+            // Save to localStorage
+            localStorage.setItem('sqliteViewerDevice', deviceSerial);
+
+            // Update backend config
+            await updateBackendConfig({ device_serial: deviceSerial });
+
+            // Load packages for the selected device
+            await loadPackages(deviceSerial, isInit);
+        }
+
+        async function loadPackages(deviceSerial, isInit = false) {
+            const input = document.getElementById('packageSearchInput');
+            const wrapper = document.getElementById('packageComboWrapper');
+            input.placeholder = 'Scanning debuggable apps...';
+            input.value = '';
+            wrapper.classList.remove('has-value');
+            selectedPackageName = '';
+            allPackages = [];
+
+            try {
+                const url = deviceSerial
+                    ? `/api/packages?device=${encodeURIComponent(deviceSerial)}`
+                    : '/api/packages';
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (!data.success) {
+                    input.placeholder = 'Error: ' + data.error;
+                    return;
+                }
+
+                allPackages = data.packages;
+                input.placeholder = `Search ${allPackages.length} debuggable apps...`;
+
+                // Restore saved / current package
+                const savedPackage = localStorage.getItem('sqliteViewerPackage');
+                const targetPackage = savedPackage || data.current_package;
+
+                if (targetPackage && allPackages.includes(targetPackage)) {
+                    selectedPackageName = targetPackage;
+                    input.value = targetPackage;
+                    wrapper.classList.add('has-value');
+                }
+
+                // Cascade: load databases for the selected package
+                await onPackageChange(isInit);
+
+            } catch (error) {
+                input.placeholder = 'Failed to load packages';
+            }
+        }
+
+        function showPackageDropdown() {
+            const input = document.getElementById('packageSearchInput');
+            // If input shows a selected value, select-all for easy replacement
+            if (selectedPackageName && input.value === selectedPackageName) {
+                input.select();
+            }
+            filterPackageDropdown();
+        }
+
+        function filterPackageDropdown() {
+            const input = document.getElementById('packageSearchInput');
+            const dropdown = document.getElementById('packageDropdown');
+            const query = input.value.trim().toLowerCase();
+
+            const filtered = query
+                ? allPackages.filter(pkg => pkg.toLowerCase().includes(query))
+                : allPackages;
+
+            if (filtered.length === 0) {
+                dropdown.innerHTML = '<div class="combo-empty">No matching packages</div>';
+            } else {
+                dropdown.innerHTML = filtered.map(pkg =>
+                    `<div class="combo-item${pkg === selectedPackageName ? ' active' : ''}"
+                          onclick="selectPackage('${pkg}')">${pkg}</div>`
+                ).join('');
+            }
+            dropdown.classList.add('visible');
+        }
+
+        async function selectPackage(packageName) {
+            const input = document.getElementById('packageSearchInput');
+            const wrapper = document.getElementById('packageComboWrapper');
+            const dropdown = document.getElementById('packageDropdown');
+
+            selectedPackageName = packageName;
+            input.value = packageName;
+            wrapper.classList.add('has-value');
+            dropdown.classList.remove('visible');
+
+            await onPackageChange();
+        }
+
+        async function clearPackageSelection(event) {
+            if (event) event.stopPropagation();
+            const input = document.getElementById('packageSearchInput');
+            const wrapper = document.getElementById('packageComboWrapper');
+
+            selectedPackageName = '';
+            input.value = '';
+            wrapper.classList.remove('has-value');
+            input.focus();
+            filterPackageDropdown();
+
+            document.getElementById('databaseSelect').innerHTML = '<option value="">Select a package first</option>';
+            localStorage.removeItem('sqliteViewerPackage');
+        }
+
+        async function onPackageChange(isInit = false) {
+            const packageName = selectedPackageName;
+
+            if (!packageName) {
+                document.getElementById('databaseSelect').innerHTML = '<option value="">Select a package first</option>';
+                return;
+            }
+
+            // Save to localStorage
+            localStorage.setItem('sqliteViewerPackage', packageName);
+
+            // Update backend config
+            await updateBackendConfig({ package_name: packageName });
+
+            // Load databases for the selected package
+            await loadDatabases(packageName, isInit);
+        }
+
+        async function loadDatabases(packageName, isInit = false) {
+            const select = document.getElementById('databaseSelect');
+            select.innerHTML = '<option value="">Loading databases...</option>';
+
+            try {
+                const deviceSerial = document.getElementById('deviceSelect').value;
+                let url = `/api/databases?package=${encodeURIComponent(packageName)}`;
+                if (deviceSerial) {
+                    url += `&device=${encodeURIComponent(deviceSerial)}`;
+                }
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (!data.success) {
+                    select.innerHTML = '<option value="">Error: ' + data.error + '</option>';
+                    return;
+                }
+
+                const savedDb = localStorage.getItem('sqliteViewerDatabase');
+                select.innerHTML = '<option value="">-- Select database --</option>';
+
+                data.databases.forEach(db => {
+                    const option = document.createElement('option');
+                    option.value = db.name;
+                    option.textContent = `${db.name} (${db.path})`;
+                    if (savedDb && db.name === savedDb) {
+                        option.selected = true;
+                    }
+                    select.appendChild(option);
+                });
+
+                // If we have a saved db that exists in the list, or use the current config
+                const selectedDb = select.value || data.current_db;
+                if (selectedDb && !select.value) {
+                    for (let i = 0; i < select.options.length; i++) {
+                        if (select.options[i].value === selectedDb) {
+                            select.value = selectedDb;
+                            break;
+                        }
+                    }
+                }
+
+                // Cascade: finalize config and load tables
+                await onDatabaseChange(isInit);
+
+            } catch (error) {
+                select.innerHTML = '<option value="">Failed to load databases</option>';
+            }
+        }
+
+        async function onDatabaseChange(isInit = false) {
+            const dbName = document.getElementById('databaseSelect').value;
+
+            if (!dbName) {
+                if (!isInit) {
+                    document.getElementById('tablesList').innerHTML = '<div class="info">Select a database to view tables</div>';
+                }
+                return;
+            }
+
+            // Save to localStorage
+            localStorage.setItem('sqliteViewerDatabase', dbName);
+
+            // Update backend config
+            await updateBackendConfig({ db_name: dbName });
+
+            // Reload connection check and tables
+            await checkConnection();
+            await loadTables();
+        }
+
+        async function updateBackendConfig(configUpdate) {
+            try {
+                await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(configUpdate)
+                });
+            } catch (error) {
+                console.error('Failed to update config:', error);
+            }
+        }
+
+        // ========== Database Search Functions ==========
+
+        function onDbSearchInput() {
+            clearTimeout(dbSearchTimeout);
+            const query = document.getElementById('dbSearchInput').value.trim();
+            if (query.length < 1) {
+                document.getElementById('searchResultsDropdown').classList.remove('visible');
+                return;
+            }
+            // Debounce: wait 400ms after typing stops
+            dbSearchTimeout = setTimeout(() => searchDatabases(), 400);
+        }
+
+        async function searchDatabases() {
+            const query = document.getElementById('dbSearchInput').value.trim();
+            const dropdown = document.getElementById('searchResultsDropdown');
+            const packageName = selectedPackageName;
+
+            if (!packageName) {
+                dropdown.innerHTML = '<div class="search-result-item"><span class="file-name">Select a package first</span></div>';
+                dropdown.classList.add('visible');
+                return;
+            }
+
+            if (!query) {
+                dropdown.classList.remove('visible');
+                return;
+            }
+
+            dropdown.innerHTML = '<div class="search-result-item"><span class="file-name">Searching...</span></div>';
+            dropdown.classList.add('visible');
+
+            try {
+                const deviceSerial = document.getElementById('deviceSelect').value;
+                let url = `/api/search-databases?package=${encodeURIComponent(packageName)}&q=${encodeURIComponent(query)}`;
+                if (deviceSerial) {
+                    url += `&device=${encodeURIComponent(deviceSerial)}`;
+                }
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (!data.success) {
+                    dropdown.innerHTML = `<div class="search-result-item"><span class="file-name">Error: ${data.error}</span></div>`;
+                    return;
+                }
+
+                if (data.databases.length === 0) {
+                    dropdown.innerHTML = '<div class="search-result-item"><span class="file-name">No databases found</span></div>';
+                    return;
+                }
+
+                dropdown.innerHTML = data.databases.map(db => `
+                    <div class="search-result-item" onclick="selectSearchResult('${db.name}', '${db.path}')">
+                        <div class="file-name">${db.name}</div>
+                        <div class="file-path">${db.path}</div>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                dropdown.innerHTML = `<div class="search-result-item"><span class="file-name">Search failed</span></div>`;
+            }
+        }
+
+        async function selectSearchResult(dbName, dbPath) {
+            // Close dropdown
+            document.getElementById('searchResultsDropdown').classList.remove('visible');
+            document.getElementById('dbSearchInput').value = '';
+
+            // Update the database select dropdown to show this selection
+            const select = document.getElementById('databaseSelect');
+            // Check if this option already exists
+            let found = false;
+            for (let i = 0; i < select.options.length; i++) {
+                if (select.options[i].value === dbName) {
+                    select.value = dbName;
+                    found = true;
+                    break;
+                }
+            }
+            // If not in the dropdown, add it
+            if (!found) {
+                const option = document.createElement('option');
+                option.value = dbName;
+                option.textContent = `${dbName} (${dbPath})`;
+                select.appendChild(option);
+                select.value = dbName;
+            }
+
+            // Trigger database change
+            await onDatabaseChange();
+        }
 
         async function checkConnection() {
             try {
