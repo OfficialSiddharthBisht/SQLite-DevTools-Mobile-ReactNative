@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADB SQLite Query Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f6f7;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: #2c3e50;
+            color: #ecf0f1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #34495e;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            background: #34495e;
+            border-bottom: 1px solid #2c3e50;
+        }
+
+        .sidebar-header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .connection-status {
+            font-size: 12px;
+            padding: 5px 10px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 10px;
+        }
+
+        .connection-status.connected {
+            background: #27ae60;
+            color: white;
+        }
+
+        .connection-status.disconnected {
+            background: #e74c3c;
+            color: white;
+        }
+
+        /* Config Section - top panel */
+        .config-section {
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .config-toggle {
+            padding: 8px 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: #495057;
+            background: #e9ecef;
+            border-bottom: 1px solid #dee2e6;
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        .config-toggle:hover {
+            background: #dee2e6;
+        }
+
+        .config-toggle .toggle-arrow {
+            font-size: 10px;
+            transition: transform 0.2s;
+            color: #6c757d;
+        }
+
+        .config-section.expanded .toggle-arrow {
+            transform: rotate(180deg);
+        }
+
+        .config-panel {
+            display: none;
+            padding: 12px 20px;
+        }
+
+        .config-section.expanded .config-panel {
+            display: block;
+        }
+
+        .config-row {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .config-group {
+            flex: 1;
+            min-width: 180px;
+        }
+
+        .config-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6c757d;
+            margin-bottom: 4px;
+        }
+
+        .config-group select,
+        .config-group input[type="text"] {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            background: white;
+            color: #495057;
+            font-size: 12px;
+            appearance: auto;
+        }
+
+        .config-group select:focus,
+        .config-group input[type="text"]:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.15);
+        }
+
+        .config-group .input-with-btn {
+            display: flex;
+            gap: 6px;
+        }
+
+        .config-group .input-with-btn input {
+            flex: 1;
+        }
+
+        .config-group .input-with-btn button {
+            padding: 6px 12px;
+            border: 1px solid #3498db;
+            border-radius: 4px;
+            background: #3498db;
+            color: white;
+            font-size: 11px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .config-group .input-with-btn button:hover {
+            background: #2980b9;
+        }
+
+        /* USB connect button */
+        .usb-connect-btn {
+            padding: 6px 14px;
+            border: 1px solid #27ae60;
+            border-radius: 4px;
+            background: #27ae60;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.2s;
+        }
+
+        .usb-connect-btn:hover {
+            background: #219a52;
+        }
+
+        .usb-connect-btn.disconnect {
+            background: #e74c3c;
+            border-color: #e74c3c;
+        }
+
+        .usb-connect-btn.disconnect:hover {
+            background: #c0392b;
+        }
+
+        .device-status {
+            font-size: 11px;
+            color: #495057;
+            margin-top: 4px;
+        }
+
+        .device-status.ok {
+            color: #27ae60;
+        }
+
+        /* Generic dropdown used by both package search and db search */
+        .combo-dropdown {
+            max-height: 220px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #ced4da;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            display: none;
+            position: absolute;
+            z-index: 100;
+            left: 0;
+            right: 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .combo-dropdown.visible {
+            display: block;
+        }
+
+        .combo-item {
+            padding: 7px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            color: #495057;
+        }
+
+        .combo-item:last-child {
+            border-bottom: none;
+        }
+
+        .combo-item:hover,
+        .combo-item.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .combo-item .item-sub {
+            font-size: 10px;
+            color: #6c757d;
+            margin-top: 2px;
+        }
+
+        .combo-item:hover .item-sub,
+        .combo-item.active .item-sub {
+            color: #d5e8f7;
+        }
+
+        .combo-empty {
+            padding: 10px;
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+            font-style: italic;
+        }
+
+        .combo-wrapper {
+            position: relative;
+        }
+
+        .combo-wrapper input {
+            padding-right: 28px;
+        }
+
+        .combo-clear {
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #999;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1;
+            display: none;
+        }
+
+        .combo-clear:hover {
+            color: #e74c3c;
+        }
+
+        .combo-wrapper.has-value .combo-clear {
+            display: block;
+        }
+
+        /* Backward compat aliases */
+        .search-results-dropdown {
+            max-height: 220px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #ced4da;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            display: none;
+            position: absolute;
+            z-index: 100;
+            left: 0;
+            right: 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .search-results-dropdown.visible {
+            display: block;
+        }
+
+        .search-result-item {
+            padding: 7px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            color: #495057;
+        }
+
+        .search-result-item:hover {
+            background: #3498db;
+            color: white;
+        }
+
+        .search-result-item .file-name {
+            font-weight: 600;
+        }
+
+        .search-result-item .file-path {
+            font-size: 10px;
+            color: #6c757d;
+            margin-top: 2px;
+        }
+
+        .search-result-item:hover .file-path {
+            color: #d5e8f7;
+        }
+
+        .sidebar-search {
+            padding: 15px;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .sidebar-search input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #34495e;
+            border-radius: 4px;
+            background: #34495e;
+            color: #ecf0f1;
+            font-size: 13px;
+        }
+
+        .sidebar-search input::placeholder {
+            color: #95a5a6;
+        }
+
+        .tables-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 0;
+        }
+
+        .table-item {
+            padding: 0;
+            cursor: default;
+            transition: background 0.2s;
+            border-left: 3px solid transparent;
+            display: block;
+        }
+
+        .accordion-header {
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .accordion-header:hover {
+            background: #34495e;
+        }
+
+        .accordion-header .arrow {
+            margin-right: 8px;
+            font-size: 10px;
+            transition: transform 0.2s;
+            color: #95a5a6;
+        }
+
+        .table-item.expanded .arrow {
+            transform: rotate(90deg);
+        }
+
+        .table-item-name {
+            flex: 1;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .query-btn {
+            padding: 2px 8px;
+            font-size: 11px;
+            background: #3498db;
+            border: none;
+            border-radius: 3px;
+            color: white;
+            cursor: pointer;
+            margin-left: 8px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .accordion-header:hover .query-btn {
+            opacity: 1;
+        }
+
+        .query-btn:hover {
+            background: #2980b9;
+        }
+
+        .accordion-content {
+            display: none;
+            background: #233342;
+            padding: 5px 15px 5px 33px;
+            font-size: 12px;
+            border-top: 1px solid #34495e;
+        }
+
+        .table-item.expanded .accordion-content {
+            display: block;
+        }
+
+        .column-item {
+            padding: 3px 0;
+            color: #bdc3c7;
+            display: flex;
+            justify-content: space-between;
+            font-family: monospace;
+        }
+
+        .column-type {
+            color: #7f8c8d;
+            font-size: 10px;
+            margin-left: 10px;
+        }
+
+        .pk-badge {
+            color: #f1c40f;
+            margin-right: 4px;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .toolbar {
+            background: white;
+            border-bottom: 1px solid #ddd;
+            padding: 15px 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .toolbar button {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .toolbar button:hover {
+            background: #f8f9fa;
+        }
+
+        .toolbar button.primary {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+
+        .toolbar button.primary:hover {
+            background: #2980b9;
+        }
+
+        .query-editor {
+            background: white;
+            border-bottom: 1px solid #ddd;
+            padding: 15px 20px;
+        }
+
+        .query-editor textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .content-area {
+            flex: 1;
+            overflow: auto;
+            background: white;
+            position: relative;
+        }
+
+        .table-wrapper {
+            overflow: auto;
+            height: 55vh;
+            max-height: 100%;
+            max-width: 100%;
+            position: relative;
+        }
+
+        table {
+            width: max-content;
+            min-width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            background: #f8f9fa;
+            z-index: 10;
+        }
+
+        th {
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #dee2e6;
+            border-right: 1px solid #dee2e6;
+            background: #f8f9fa;
+            color: #495057;
+        }
+
+        td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #dee2e6;
+            border-right: 1px solid #dee2e6;
+            white-space: nowrap;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-bar {
+            background: #f8f9fa;
+            border-top: 1px solid #ddd;
+            padding: 8px 20px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .loading {
+            padding: 40px;
+            text-align: center;
+            color: #666;
+        }
+
+        .error {
+            padding: 20px;
+            background: #fee;
+            color: #c33;
+            border: 1px solid #fcc;
+            border-radius: 4px;
+            margin: 20px;
+        }
+
+        .info {
+            padding: 20px;
+            background: #e3f2fd;
+            color: #1976d2;
+            border: 1px solid #90caf9;
+            border-radius: 4px;
+            margin: 20px;
+        }
+
+        .pagination {
+            padding: 15px 20px;
+            background: white;
+            border-top: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pagination button {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination button:not(:disabled):hover {
+            background: #f8f9fa;
+        }
+
+        .pagination input[type="number"] {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .pagination select {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+        }
+
+        .pagination label {
+            font-size: 12px;
+            color: #666;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 5px;
+            padding: 0 20px;
+            background: white;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .tab:hover {
+            background: #f8f9fa;
+        }
+
+        .tab.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Refresh button animation */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .spinning {
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h1>ADB SQLite Viewer</h1>
+            <div class="connection-status disconnected" id="connectionStatus">
+                Not connected
+            </div>
+        </div>
+        <div class="sidebar-search">
+            <input type="text" id="tableSearch" placeholder="Search tables...">
+        </div>
+        <div class="tables-list" id="tablesList">
+            <div class="info" style="margin: 10px; font-size: 12px;">Connect a USB device to get started.</div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Collapsible Configuration Panel -->
+        <div class="config-section expanded" id="configSection">
+            <div class="config-toggle" id="configToggleBtn">
+                <span class="toggle-arrow">&#9660;</span>
+                <span>Device &amp; Database Configuration</span>
+            </div>
+            <div class="config-panel">
+                <div class="config-row">
+                    <div class="config-group">
+                        <label>USB Device</label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button class="usb-connect-btn" id="usbConnectBtn">Connect Device</button>
+                        </div>
+                        <div class="device-status" id="deviceStatus">No device connected</div>
+                    </div>
+                    <div class="config-group" style="position: relative;">
+                        <label>Package (debuggable only)</label>
+                        <div class="combo-wrapper" id="packageComboWrapper">
+                            <input type="text" id="packageSearchInput"
+                                placeholder="Connect device first..."
+                                disabled>
+                            <button class="combo-clear" id="packageClearBtn" title="Clear selection">&times;</button>
+                        </div>
+                        <div class="combo-dropdown" id="packageDropdown"></div>
+                    </div>
+                    <div class="config-group">
+                        <label>Database File</label>
+                        <select id="databaseSelect" disabled>
+                            <option value="">Select a package first</option>
+                        </select>
+                    </div>
+                    <div class="config-group" style="position: relative;">
+                        <label>Search SQLite Files</label>
+                        <div class="input-with-btn">
+                            <input type="text" id="dbSearchInput" placeholder="Search for .db files...">
+                            <button id="dbSearchBtn">Search</button>
+                        </div>
+                        <div class="search-results-dropdown" id="searchResultsDropdown"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="toolbar">
+            <button class="primary" id="executeBtn">Execute (F5)</button>
+            <button id="executeAllBtn" title="Run the entire query ignoring selection">Execute All</button>
+            <button id="refreshTablesBtn">Refresh Tables</button>
+            <button id="clearQueryBtn">Clear Query</button>
+            <button id="formatQueryBtn">Format</button>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" data-tab="query">Query</div>
+            <div class="tab" data-tab="structure">Structure</div>
+        </div>
+
+        <div class="query-editor">
+            <textarea id="queryInput" placeholder="Enter your SQL query here..."></textarea>
+        </div>
+
+        <div class="tab-content active" id="queryTab">
+            <div class="content-area">
+                <div class="info" id="welcomeMessage">
+                    <strong>Welcome to ADB SQLite Query Viewer!</strong><br>
+                    Connect a USB device, select a package and database, then browse tables or write SQL queries.<br>
+                    <small>Requires Chrome or Edge (WebUSB). Device must have USB debugging enabled.</small>
+                </div>
+                <div class="table-wrapper" id="resultsContainer"></div>
+            </div>
+            <div class="pagination" id="pagination" style="display: none;">
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button id="firstBtn">First</button>
+                    <button id="prevBtn">Previous</button>
+                    <span id="pageInfo"></span>
+                    <button id="nextBtn">Next</button>
+                    <button id="lastBtn">Last</button>
+                    <span style="margin-left: 20px;">|</span>
+                    <label style="margin-left: 10px;">Go to page:</label>
+                    <input type="number" id="gotoPageInput" min="1" style="width: 80px; padding: 4px;">
+                    <button id="gotoPageBtn">Go</button>
+                    <span style="margin-left: 20px;">|</span>
+                    <label style="margin-left: 10px;">Rows per page:</label>
+                    <select id="limitSelect" style="padding: 4px;">
+                        <option value="50">50</option>
+                        <option value="100" selected>100</option>
+                        <option value="200">200</option>
+                        <option value="500">500</option>
+                        <option value="1000">1000</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+            </div>
+            <div class="status-bar" id="statusBar">Ready</div>
+        </div>
+
+        <div class="tab-content" id="structureTab">
+            <div class="content-area">
+                <div class="info">Select a table to view its structure</div>
+                <div class="table-wrapper" id="structureContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,20 @@
+{
+  "name": "adb-sqlite-viewer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@yume-chan/adb": "^0.0.24",
+    "@yume-chan/adb-credential-web": "^0.0.24",
+    "@yume-chan/adb-daemon-webusb": "^0.0.24",
+    "@yume-chan/stream-extra": "^0.0.24"
+  },
+  "devDependencies": {
+    "vite": "^6.1.0"
+  }
+}

@@ -70,3 +70,5 @@ htmlcov/
 tmp/
 temp/
 .claude/settings.local.json
+
+node_modules/
