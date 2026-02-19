@@ -203,6 +203,7 @@ function verifyAdb() {
       if (err) {
         console.error("ERROR: 'adb' not found in PATH.");
         console.error("Install Android SDK Platform-Tools and ensure 'adb' is on your PATH.");
+        if (process.send) process.send({ type: "error", message: "adb not found in PATH" });
         process.exit(1);
       }
       const firstLine = stdout.split("\n")[0].trim();
@@ -220,5 +221,6 @@ verifyAdb().then(() => {
     console.log("  GET  /api/devices  — list connected devices");
     console.log("  POST /api/shell    — run adb shell command");
     console.log("\nPress Ctrl+C to stop.");
+    if (process.send) process.send({ type: "ready" });
   });
 });

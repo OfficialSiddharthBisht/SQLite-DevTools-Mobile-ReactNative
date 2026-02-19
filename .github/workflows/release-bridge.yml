@@ -1,4 +1,4 @@
-name: Build & Release ADB Bridge
+name: Build & Release
 
 on:
   push:
@@ -19,26 +19,52 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install dependencies
+      # ── ADB Bridge ─────────────────────────────────
+      - name: Install bridge dependencies
         run: npm install
         working-directory: bridge
 
-      - name: Build exe with pkg
+      - name: Build adb-bridge.exe
         run: npx pkg server.js --target node20-win-x64 --output adb-bridge.exe
         working-directory: bridge
 
-      - name: Verify exe exists
+      - name: Verify adb-bridge.exe
         run: dir bridge\adb-bridge.exe
 
-      - name: Upload artifact
+      # ── Electron App ───────────────────────────────
+      - name: Install app dependencies
+        run: npm ci
+
+      - name: Build Vite app for Electron
+        run: npm run build:electron
+
+      - name: Build Electron installer
+        run: npx electron-builder --win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List Electron output
+        run: dir electron-dist
+
+      # ── Artifacts ──────────────────────────────────
+      - name: Upload adb-bridge artifact
         uses: actions/upload-artifact@v4
         with:
           name: adb-bridge
           path: bridge/adb-bridge.exe
 
+      - name: Upload Electron installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-app
+          path: electron-dist/*.exe
+
+      # ── Release ────────────────────────────────────
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: bridge/adb-bridge.exe
+          files: |
+            bridge/adb-bridge.exe
+            electron-dist/*.exe
           generate_release_notes: true

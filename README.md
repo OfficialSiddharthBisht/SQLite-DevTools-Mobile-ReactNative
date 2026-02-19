@@ -2,9 +2,18 @@
 
 A browser-based tool for inspecting SQLite databases on Android devices. Browse tables, view schemas, and execute SQL queries directly on your device.
 
-## Three Ways to Use
+## Four Ways to Use
 
-### Option 1: Hosted Version + ADB Bridge (Best for React Native Developers)
+### Option 1: Desktop App (Easiest)
+
+Download the installer from [Releases](https://github.com/amitwinit/SQLite-DevTools-Mobile-ReactNative/releases) and run it. The app bundles the ADB bridge server — it starts automatically when you launch the app. No separate downloads, no terminal commands.
+
+**Requirements:**
+- Windows (NSIS installer)
+- `adb` on your PATH (Android SDK Platform-Tools)
+- Android device with USB debugging enabled
+
+### Option 2: Hosted Version + ADB Bridge (Best for React Native Developers)
 
 Use the deployed version at **[amitwinit.github.io/SQLite-DevTools-Mobile-ReactNative](https://amitwinit.github.io/SQLite-DevTools-Mobile-ReactNative/)** together with the **ADB Bridge** — a small localhost server that wraps `adb shell` commands. This lets you inspect databases while ADB stays running for React Native development.
 
@@ -34,7 +43,7 @@ Hosted website (HTTPS) ──HTTP──> localhost:15555 (bridge) ──> adb sh
 ```
 The website detects the bridge on startup and routes all commands through HTTP instead of WebUSB. No need to kill ADB.
 
-### Option 2: Hosted Version with WebUSB (No Setup Required)
+### Option 3: Hosted Version with WebUSB (No Setup Required)
 
 Use the deployed version at **[amitwinit.github.io/SQLite-DevTools-Mobile-ReactNative](https://amitwinit.github.io/SQLite-DevTools-Mobile-ReactNative/)**
 
@@ -45,7 +54,7 @@ This version uses **WebUSB** to communicate with your Android device directly fr
 - Android device with USB debugging enabled
 - You must **stop the local ADB server** first: `adb kill-server`
 
-**Important:** WebUSB and the local ADB server cannot use the USB interface at the same time. If you are actively developing a React Native app and need ADB running, use **Option 2** instead.
+**Important:** WebUSB and the local ADB server cannot use the USB interface at the same time. If you are actively developing a React Native app and need ADB running, use **Option 1** or **Option 2** instead.
 
 **Steps:**
 1. Run `adb kill-server` in your terminal
@@ -54,7 +63,7 @@ This version uses **WebUSB** to communicate with your Android device directly fr
 4. Approve the USB debugging prompt on your phone (first time only)
 5. Select a package and database, then start querying
 
-### Option 3: Local Flask Server (Legacy)
+### Option 4: Local Flask Server (Legacy)
 
 If you are developing a React Native app and need ADB running alongside, use the local Flask backend. Both tools share the same ADB server so there is no conflict.
 
@@ -87,12 +96,13 @@ If you are developing a React Native app and need ADB running alongside, use the
 
 | Scenario | Use |
 |----------|-----|
-| Active React Native development | ADB Bridge (Option 1) |
-| Quick DB inspection, no local setup | WebUSB (Option 2) |
-| Sharing with teammates who don't have Python | WebUSB (Option 2) |
-| Need ADB for other tools simultaneously | ADB Bridge (Option 1) |
+| Just want it to work, one click | Desktop App (Option 1) |
+| Active React Native development | Desktop App (Option 1) or ADB Bridge (Option 2) |
+| Quick DB inspection, no local setup | WebUSB (Option 3) |
+| Sharing with teammates who don't have Python | WebUSB (Option 3) |
+| Need ADB for other tools simultaneously | Desktop App (Option 1) or ADB Bridge (Option 2) |
 
-## Environment Variables (Option 3)
+## Environment Variables (Option 4)
 
 ### Application Configuration
 - `PACKAGE_NAME`: Android app package name
@@ -118,10 +128,24 @@ npm install
 npm run dev
 ```
 
-To build for production:
+To build for production (GitHub Pages):
 
 ```bash
 npm run build
 ```
 
 The built files go to `dist/` and are deployed to GitHub Pages automatically on push to `main`.
+
+To run the Electron desktop app in development:
+
+```bash
+npm run electron:dev
+```
+
+To build the Electron installer:
+
+```bash
+npm run electron:build
+```
+
+The installer is output to `electron-dist/`.
