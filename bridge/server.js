@@ -1,5 +1,5 @@
 const http = require("http");
-const { execFile } = require("child_process");
+const { execFile, spawn } = require("child_process");
 
 const PORT = 15555;
 const HOST = "127.0.0.1";
@@ -38,6 +38,7 @@ function readBody(req) {
   });
 }
 
+/** Run adb with simple args (devices, version). Rejects on non-zero exit. */
 function adb(args) {
   return new Promise((resolve, reject) => {
     execFile("adb", args, { timeout: TIMEOUT, maxBuffer: MAX_BUFFER }, (err, stdout, stderr) => {
@@ -47,6 +48,60 @@ function adb(args) {
         resolve(stdout);
       }
     });
+  });
+}
+
+/**
+ * Run a shell command on device via stdin piping.
+ * Avoids Windows argument quoting issues with complex shell commands.
+ * Returns stdout even on non-zero exit codes (common for probe scripts).
+ */
+function adbShell(command, serial) {
+  return new Promise((resolve, reject) => {
+    const args = [];
+    if (serial) args.push("-s", serial);
+    args.push("shell");
+
+    const proc = spawn("adb", args, { windowsHide: true });
+    let stdout = "";
+    let stderr = "";
+    let settled = false;
+
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        proc.kill();
+        reject(new Error("Command timed out"));
+      }
+    }, TIMEOUT);
+
+    proc.stdout.on("data", (data) => { stdout += data; });
+    proc.stderr.on("data", (data) => { stderr += data; });
+
+    proc.on("close", () => {
+      clearTimeout(timer);
+      if (settled) return;
+      settled = true;
+      // Always resolve with stdout — device commands often exit non-zero
+      // (e.g. probe scripts where some iterations fail) but still produce
+      // valid output. Only reject if we got nothing and stderr has content.
+      if (!stdout && stderr.trim()) {
+        reject(new Error(stderr.trim()));
+      } else {
+        resolve(stdout);
+      }
+    });
+
+    proc.on("error", (err) => {
+      clearTimeout(timer);
+      if (settled) return;
+      settled = true;
+      reject(err);
+    });
+
+    // Send command through stdin — bypasses Windows command-line quoting entirely
+    proc.stdin.write(command + "\n");
+    proc.stdin.end();
   });
 }
 
@@ -104,10 +159,7 @@ async function handleShell(req, res) {
   }
 
   try {
-    const args = [];
-    if (serial) args.push("-s", serial);
-    args.push("shell", command);
-    const output = await adb(args);
+    const output = await adbShell(command, serial);
     json(res, 200, { output });
   } catch (err) {
     json(res, 500, { error: err.message });
