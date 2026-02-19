@@ -88,11 +88,67 @@ window.addEventListener("DOMContentLoaded", () => {
     tab.addEventListener("click", () => switchTab(tab.dataset.tab));
   });
 
-  // Try to auto-reconnect to a previously paired device
-  tryAutoReconnect();
+  // Try bridge first, then fall back to WebUSB auto-reconnect
+  tryBridgeThenAutoReconnect();
 });
 
-// ──────────────── USB Connection ────────────────
+// ──────────────── Bridge + USB Connection ────────────────
+
+async function tryBridgeThenAutoReconnect() {
+  try {
+    const bridgeFound = await adbClient.connectBridge();
+    if (bridgeFound) {
+      showBridgeConnected();
+      await loadBridgeDevices();
+      return;
+    }
+  } catch {
+    /* bridge not available */
+  }
+  // Fall back to WebUSB
+  await tryAutoReconnect();
+}
+
+function showBridgeConnected() {
+  const statusEl = $("connectionStatus");
+  statusEl.textContent = "ADB Bridge";
+  statusEl.className = "connection-status bridge";
+  $("deviceStatus").textContent = "Bridge connected on :15555";
+  $("deviceStatus").classList.add("ok");
+
+  const btn = $("usbConnectBtn");
+  btn.textContent = "Disconnect Bridge";
+  btn.classList.add("disconnect");
+}
+
+async function loadBridgeDevices() {
+  try {
+    const devices = await adbClient.getDevices();
+    if (devices.length === 0) {
+      $("deviceStatus").textContent = "Bridge connected — no devices found. Plug in a phone.";
+      $("deviceStatus").classList.remove("ok");
+      return;
+    }
+
+    if (devices.length === 1) {
+      // Auto-select the only device
+      adbClient.bridgeSerial = devices[0].serial;
+      $("deviceStatus").textContent = devices[0].display_name;
+      $("deviceStatus").classList.add("ok");
+      await loadPackages();
+      return;
+    }
+
+    // Multiple devices — let user pick
+    adbClient.bridgeSerial = devices[0].serial;
+    $("deviceStatus").textContent = devices[0].display_name;
+    $("deviceStatus").classList.add("ok");
+    await loadPackages();
+  } catch (err) {
+    $("deviceStatus").textContent = `Bridge error: ${err.message}`;
+    $("deviceStatus").classList.remove("ok");
+  }
+}
 
 async function tryAutoReconnect() {
   try {
@@ -118,7 +174,7 @@ async function tryAutoReconnect() {
 async function onUsbConnectClick() {
   const btn = $("usbConnectBtn");
 
-  if (adbClient.adb) {
+  if (adbClient.mode === "bridge" || adbClient.adb) {
     // Already connected → disconnect
     await adbClient.disconnect();
     btn.textContent = "Connect Device";
@@ -409,7 +465,8 @@ async function selectSearchResult(dbName, dbPath) {
 
 async function updateConnectionStatus() {
   const statusEl = $("connectionStatus");
-  if (!adbClient.adb) {
+  const isConnected = adbClient.mode === "bridge" ? !!adbClient.bridgeUrl : !!adbClient.adb;
+  if (!isConnected) {
     statusEl.textContent = "Disconnected";
     statusEl.className = "connection-status disconnected";
     return;
@@ -418,15 +475,15 @@ async function updateConnectionStatus() {
   try {
     const exists = await adbClient.checkDatabaseExists();
     if (exists) {
-      statusEl.textContent = "Connected";
-      statusEl.className = "connection-status connected";
+      statusEl.textContent = adbClient.mode === "bridge" ? "ADB Bridge" : "Connected";
+      statusEl.className = adbClient.mode === "bridge" ? "connection-status bridge" : "connection-status connected";
     } else {
       statusEl.textContent = "DB not found";
       statusEl.className = "connection-status disconnected";
     }
   } catch {
-    statusEl.textContent = "Connected";
-    statusEl.className = "connection-status connected";
+    statusEl.textContent = adbClient.mode === "bridge" ? "ADB Bridge" : "Connected";
+    statusEl.className = adbClient.mode === "bridge" ? "connection-status bridge" : "connection-status connected";
   }
 }
 

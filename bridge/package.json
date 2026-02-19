@@ -1,0 +1,13 @@
+{
+  "name": "adb-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Localhost HTTP bridge that wraps adb shell commands for the SQLite DevTools website",
+  "scripts": {
+    "start": "node server.js",
+    "build": "pkg server.js --target node20-win-x64 --output adb-bridge.exe"
+  },
+  "devDependencies": {
+    "@yao-pkg/pkg": "^5.11.0"
+  }
+}

@@ -23,6 +23,58 @@ export class AdbClient {
     this.dbPath = "";
     /** @type {string} */
     this.sqlite3Path = "";
+
+    /** @type {'webusb'|'bridge'} */
+    this.mode = "webusb";
+    /** @type {string} */
+    this.bridgeUrl = "";
+    /** @type {string} */
+    this.bridgeSerial = "";
+  }
+
+  // ──────────────── Bridge transport ────────────────
+
+  /**
+   * Attempt to connect to the localhost ADB bridge server.
+   * Returns true if bridge is reachable, false otherwise.
+   */
+  async connectBridge(port = 15555) {
+    const url = `http://127.0.0.1:${port}`;
+    try {
+      const resp = await fetch(`${url}/api/ping`, { signal: AbortSignal.timeout(2000) });
+      const data = await resp.json();
+      if (data.ok) {
+        this.mode = "bridge";
+        this.bridgeUrl = url;
+        return true;
+      }
+    } catch {
+      /* bridge not running */
+    }
+    return false;
+  }
+
+  /** Run a shell command through the bridge HTTP server. */
+  async _bridgeShell(command) {
+    const resp = await fetch(`${this.bridgeUrl}/api/shell`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        command,
+        serial: this.bridgeSerial || undefined,
+      }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || "Bridge shell command failed");
+    return (data.output || "").replace(/\r\n/g, "\n").trimEnd();
+  }
+
+  /** Get devices through the bridge HTTP server. */
+  async _bridgeGetDevices() {
+    const resp = await fetch(`${this.bridgeUrl}/api/devices`);
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || "Bridge devices request failed");
+    return data.devices || [];
   }
 
   // ──────────────── Connection ────────────────
@@ -47,6 +99,7 @@ export class AdbClient {
    * List already-paired WebUSB devices (no picker needed).
    */
   async getDevices() {
+    if (this.mode === "bridge") return this._bridgeGetDevices();
     if (!Manager) return [];
     const devices = await Manager.getDevices();
     return devices.map((d) => ({
@@ -60,6 +113,10 @@ export class AdbClient {
    * Connect to a specific previously-paired device by serial.
    */
   async connectBySerial(serial) {
+    if (this.mode === "bridge") {
+      this.bridgeSerial = serial;
+      return this.getDeviceInfo();
+    }
     if (!Manager) throw new Error("WebUSB not supported.");
     const devices = await Manager.getDevices();
     const target = devices.find((d) => d.serial === serial);
@@ -95,6 +152,12 @@ export class AdbClient {
   }
 
   async disconnect() {
+    if (this.mode === "bridge") {
+      this.bridgeSerial = "";
+      this.bridgeUrl = "";
+      this.mode = "webusb";
+      return;
+    }
     if (this.adb) {
       try {
         await this.adb.close();
@@ -107,15 +170,24 @@ export class AdbClient {
   }
 
   checkConnection() {
+    const connected = this.mode === "bridge" ? !!this.bridgeUrl : !!this.adb;
     return {
-      connected: !!this.adb,
-      device: this.adb ? this.getDeviceInfo() : null,
+      connected,
+      device: connected ? this.getDeviceInfo() : null,
       package: this.packageName,
       database: this.dbName,
     };
   }
 
   getDeviceInfo() {
+    if (this.mode === "bridge") {
+      if (!this.bridgeSerial) return null;
+      return {
+        serial: this.bridgeSerial,
+        name: this.bridgeSerial,
+        display_name: `${this.bridgeSerial} (ADB Bridge)`,
+      };
+    }
     if (!this.device) return null;
     return {
       serial: this.device.serial,
@@ -145,6 +217,7 @@ export class AdbClient {
    * Strips trailing \r\n from Android output.
    */
   async shell(command) {
+    if (this.mode === "bridge") return this._bridgeShell(command);
     if (!this.adb) throw new Error("Not connected to a device.");
     const output = await this.adb.subprocess.spawnAndWaitLegacy(command);
     // spawnAndWaitLegacy may return string, Uint8Array, or {stdout, stderr}.

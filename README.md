@@ -2,9 +2,39 @@
 
 A browser-based tool for inspecting SQLite databases on Android devices. Browse tables, view schemas, and execute SQL queries directly on your device.
 
-## Two Ways to Use
+## Three Ways to Use
 
-### Option 1: Hosted Version (No Setup Required)
+### Option 1: Hosted Version + ADB Bridge (Best for React Native Developers)
+
+Use the deployed version at **[amitwinit.github.io/SQLite-DevTools-Mobile-ReactNative](https://amitwinit.github.io/SQLite-DevTools-Mobile-ReactNative/)** together with the **ADB Bridge** — a small localhost server that wraps `adb shell` commands. This lets you inspect databases while ADB stays running for React Native development.
+
+**Setup:**
+
+1. Download `adb-bridge.exe` from [Releases](https://github.com/amitwinit/SQLite-DevTools-Mobile-ReactNative/releases), or build it yourself:
+   ```bash
+   cd bridge
+   npm install
+   npm run build    # produces adb-bridge.exe
+   ```
+
+2. Run the bridge:
+   ```bash
+   # Either run the exe directly:
+   adb-bridge.exe
+
+   # Or with Node.js:
+   cd bridge && node server.js
+   ```
+
+3. Open the hosted website — it auto-detects the bridge and connects through it.
+
+**How it works:**
+```
+Hosted website (HTTPS) ──HTTP──> localhost:15555 (bridge) ──> adb shell ──> Device
+```
+The website detects the bridge on startup and routes all commands through HTTP instead of WebUSB. No need to kill ADB.
+
+### Option 2: Hosted Version with WebUSB (No Setup Required)
 
 Use the deployed version at **[amitwinit.github.io/SQLite-DevTools-Mobile-ReactNative](https://amitwinit.github.io/SQLite-DevTools-Mobile-ReactNative/)**
 
@@ -24,7 +54,7 @@ This version uses **WebUSB** to communicate with your Android device directly fr
 4. Approve the USB debugging prompt on your phone (first time only)
 5. Select a package and database, then start querying
 
-### Option 2: Local Flask Server (For React Native Developers)
+### Option 3: Local Flask Server (Legacy)
 
 If you are developing a React Native app and need ADB running alongside, use the local Flask backend. Both tools share the same ADB server so there is no conflict.
 
@@ -57,12 +87,12 @@ If you are developing a React Native app and need ADB running alongside, use the
 
 | Scenario | Use |
 |----------|-----|
-| Quick DB inspection, no local setup | Hosted version (Option 1) |
-| Active React Native development | Local Flask server (Option 2) |
-| Sharing with teammates who don't have Python | Hosted version (Option 1) |
-| Need ADB for other tools simultaneously | Local Flask server (Option 2) |
+| Active React Native development | ADB Bridge (Option 1) |
+| Quick DB inspection, no local setup | WebUSB (Option 2) |
+| Sharing with teammates who don't have Python | WebUSB (Option 2) |
+| Need ADB for other tools simultaneously | ADB Bridge (Option 1) |
 
-## Environment Variables (Option 2)
+## Environment Variables (Option 3)
 
 ### Application Configuration
 - `PACKAGE_NAME`: Android app package name

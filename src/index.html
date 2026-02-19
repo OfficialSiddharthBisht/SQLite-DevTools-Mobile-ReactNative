@@ -60,6 +60,11 @@
             color: white;
         }
 
+        .connection-status.bridge {
+            background: #8e44ad;
+            color: white;
+        }
+
         /* Config Section - top panel */
         .config-section {
             background: #f8f9fa;
@@ -767,8 +772,10 @@
             <div class="content-area">
                 <div class="info" id="welcomeMessage">
                     <strong>Welcome to ADB SQLite Query Viewer!</strong><br>
-                    Connect a USB device, select a package and database, then browse tables or write SQL queries.<br>
-                    <small>Requires Chrome or Edge (WebUSB). Device must have USB debugging enabled.</small>
+                    <b>ADB Bridge (recommended for RN devs):</b> Run <code>adb-bridge.exe</code> or <code>node bridge/server.js</code> — auto-detected on startup.<br>
+                    <b>WebUSB:</b> Click "Connect Device" (requires <code>adb kill-server</code> first).<br>
+                    Select a package and database, then browse tables or write SQL queries.<br>
+                    <small>WebUSB requires Chrome or Edge. Device must have USB debugging enabled.</small>
                 </div>
                 <div class="table-wrapper" id="resultsContainer"></div>
             </div>

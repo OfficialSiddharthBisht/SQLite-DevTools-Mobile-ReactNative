@@ -72,3 +72,7 @@ temp/
 .claude/settings.local.json
 
 node_modules/
+
+# ADB Bridge
+bridge/adb-bridge.exe
+bridge/node_modules/
