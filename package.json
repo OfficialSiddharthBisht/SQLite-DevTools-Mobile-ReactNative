@@ -1,0 +1,50 @@
+{
+  "name": "adb-sqlite-viewer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "build:electron": "cross-env BUILD_TARGET=electron vite build",
+    "electron:dev": "cross-env BUILD_TARGET=electron vite build && electron .",
+    "electron:build": "cross-env BUILD_TARGET=electron vite build && electron-builder"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@yume-chan/adb": "^0.0.24",
+    "@yume-chan/adb-credential-web": "^0.0.24",
+    "@yume-chan/adb-daemon-webusb": "^0.0.24",
+    "@yume-chan/stream-extra": "^0.0.24",
+    "cross-env": "^7.0.3",
+    "electron": "^34.0.0",
+    "electron-builder": "^25.1.8",
+    "vite": "^6.1.0"
+  },
+  "build": {
+    "appId": "com.adb-sqlite-viewer.app",
+    "productName": "ADB SQLite DevTools",
+    "directories": {
+      "output": "electron-dist"
+    },
+    "files": [
+      "electron/**/*",
+      "dist/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "bridge/server.js",
+        "to": "bridge/server.js"
+      },
+      {
+        "from": "bridge/package.json",
+        "to": "bridge/package.json"
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  }
+}

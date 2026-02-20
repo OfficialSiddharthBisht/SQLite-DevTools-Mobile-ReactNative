@@ -70,3 +70,13 @@ htmlcov/
 tmp/
 temp/
 .claude/settings.local.json
+
+node_modules/
+
+# ADB Bridge
+bridge/adb-bridge.exe
+bridge/node_modules/
+bridge/package-lock.json
+
+# Electron
+electron-dist/

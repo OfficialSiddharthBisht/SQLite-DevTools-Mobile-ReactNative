@@ -994,6 +994,22 @@ class SQLiteADBQueryTool:
                 results = self.execute_remote_query(query)
                 if results is not None:
                     return results
+
+                # Check if the error is a SQL/database error that won't be fixed by local execution
+                # These errors indicate the query itself is problematic, not the remote execution
+                sql_errors = [
+                    'no such table', 'no such column', 'syntax error',
+                    'near "', 'unrecognized token', 'no such function',
+                    'table already exists', 'unique constraint failed',
+                    'foreign key constraint failed', 'not null constraint failed',
+                    'check constraint failed', 'datatype mismatch'
+                ]
+                if self.last_error and any(err in self.last_error.lower() for err in sql_errors):
+                    # SQL error - don't fall back, the same error will occur locally
+                    print("❌ Query failed due to SQL error (not falling back to local - same database)")
+                    return None
+
+                # Only fall back for infrastructure/connectivity issues
                 print("⚠️  Remote execution failed, falling back to local...")
 
         # Fall back to local execution

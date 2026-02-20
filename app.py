@@ -98,27 +98,35 @@ def get_devices():
 
 @app.route('/api/packages', methods=['GET'])
 def get_packages():
-    """Get list of installed packages on the selected device"""
+    """Get list of debuggable packages on the selected device"""
     try:
         device_serial = request.args.get('device', app_config['device_serial'])
 
-        # Build ADB command with optional device serial
-        adb_cmd = ['adb']
+        # Build ADB base command with optional device serial
+        adb_base = ['adb']
         if device_serial:
-            adb_cmd.extend(['-s', device_serial])
-        adb_cmd.extend(['shell', 'pm', 'list', 'packages', '-3'])  # -3 for third-party apps only
+            adb_base.extend(['-s', device_serial])
 
-        result = subprocess.run(adb_cmd, capture_output=True, text=True, timeout=30)
+        # Single shell command: list third-party packages, then test each with run-as
+        # run-as only works on debuggable apps, so this filters automatically
+        # --user 0: target main user only (avoids SecurityException on multi-user/work profile devices)
+        # tr -d '\\r': strips carriage returns from Android's CRLF line endings
+        shell_script = (
+            'for p in $(pm list packages --user 0 -3 2>/dev/null | tr -d "\\r" | sed "s/package://"); do '
+            'run-as $p id 2>/dev/null 1>/dev/null && echo $p; '
+            'done'
+        )
+        cmd = adb_base + ['shell', shell_script]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
 
-        if result.returncode != 0:
-            return jsonify({'success': False, 'error': f'Failed to get packages: {result.stderr}'})
+        # Don't check returncode — the for loop returns the exit code of the last
+        # run-as which is non-zero if the last package isn't debuggable
 
         packages = []
         for line in result.stdout.strip().split('\n'):
-            if line.startswith('package:'):
-                package_name = line.replace('package:', '').strip()
-                if package_name:
-                    packages.append(package_name)
+            package_name = line.strip()
+            if package_name:
+                packages.append(package_name)
 
         # Sort packages alphabetically
         packages.sort()
@@ -130,7 +138,7 @@ def get_packages():
         })
 
     except subprocess.TimeoutExpired:
-        return jsonify({'success': False, 'error': 'ADB command timed out'})
+        return jsonify({'success': False, 'error': 'Scanning debuggable packages timed out (this can take a while on first load)'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -224,6 +232,59 @@ def get_databases():
 
     except subprocess.TimeoutExpired:
         return jsonify({'success': False, 'error': 'ADB command timed out'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/search-databases', methods=['GET'])
+def search_databases():
+    """Search for SQLite database files within a package's data directory"""
+    try:
+        device_serial = request.args.get('device', app_config['device_serial'])
+        package_name = request.args.get('package', app_config['package_name'])
+        search_query = request.args.get('q', '').strip().lower()
+
+        # Build ADB command
+        adb_cmd = ['adb']
+        if device_serial:
+            adb_cmd.extend(['-s', device_serial])
+
+        # Use find to recursively search for db files
+        cmd = adb_cmd + ['shell', f'run-as {package_name} find . -name "*.db" -o -name "*.sqlite" -o -name "*.sqlite3" 2>/dev/null']
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+        databases = []
+        if result.returncode == 0:
+            for line in result.stdout.strip().split('\n'):
+                file_path = line.strip()
+                if not file_path:
+                    continue
+                # Clean up the path (remove leading ./)
+                if file_path.startswith('./'):
+                    file_path = file_path[2:]
+                file_name = file_path.split('/')[-1]
+                # Skip journal/wal/shm files
+                if file_name.endswith('-journal') or file_name.endswith('-wal') or file_name.endswith('-shm'):
+                    continue
+                databases.append({
+                    'name': file_name,
+                    'path': file_path
+                })
+
+        # Apply search filter if provided
+        if search_query:
+            databases = [db for db in databases if search_query in db['name'].lower() or search_query in db['path'].lower()]
+
+        # Sort by name
+        databases.sort(key=lambda x: x['name'].lower())
+
+        return jsonify({
+            'success': True,
+            'databases': databases,
+            'current_db': app_config['db_name']
+        })
+
+    except subprocess.TimeoutExpired:
+        return jsonify({'success': False, 'error': 'Search timed out'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
